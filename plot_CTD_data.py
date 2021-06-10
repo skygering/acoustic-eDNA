@@ -69,7 +69,6 @@ def main():
         with open(file, 'r', encoding = "ISO-8859-1") as infile:
             evl_data = infile.readlines()
 
-
         depth_data = {}
         for line in evl_data[2:]: # exclude the first two lines which are headers
             line.rstrip()

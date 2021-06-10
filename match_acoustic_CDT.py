@@ -36,7 +36,7 @@ outfile = open(path + "/evl_raw_matches.list", 'w')
 headerline = 'Cruise ' + cruise + " CTD and matching acoustic (.raw) files"
 outfile.write(headerline+'\n')
 
-start_delay = timedelta(minutes=15) # Time delay for starting CTD data collection after acoustics 
+start_delay = timedelta(minutes=30) # Time delay for starting CTD data collection after acoustics 
 for evl_file in evl_dates_dic:
     (stime, etime) = evl_dates_dic[evl_file]
     raw_list = []
@@ -44,7 +44,7 @@ for evl_file in evl_dates_dic:
         # If acoustic start is between CDT times or start_delay before, record that raw file
         if (date > stime and date < etime) or abs(date - stime) < start_delay:
             raw_list.append(date_raw_dic[date])
-    outfile.write(evl_file + " ".join(raw_list) + "\n") # write CDT file (.evl) followed by overlapping .raw files
+    outfile.write(evl_file + " " + " ".join(raw_list) + "\n") # write CDT file (.evl) followed by overlapping .raw files
 
 outfile.close()
 

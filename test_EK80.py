@@ -11,10 +11,12 @@
 
 from echolab2.instruments import EK80
 from echolab2.plotting.matplotlib import echogram
-from matplotlib.pyplot import figure, show, subplots_adjust, get_cmap
+import matplotlib.pyplot as plt
+import matplotlib.colors as colors
+#from matplotlib.pyplot import figure, show, subplots_adjust, get_cmap
 
 # this is EK60 data recorded with EK80 software
-infile = '/media/mjech/Mac Passport/GU201905/EK60_Data/\
+infile = '/Volumes/GeringSSD/GU1905_Acoustic/EK60/\
 GU19_05-D20191018-T112417.raw'
 
 
@@ -48,8 +50,10 @@ for fq in Sv_data.keys():
     Sv_data[fq] = tmp[fq][0].get_Sv()
 
 Sv_018 = Sv_data[18000]
-fig1 = figure()
+fig1 = plt.figure()
+
 eg = echogram.Echogram(fig1, Sv_018, cmap='viridis')
+plt.show()
 
 
 # from Victoria's code

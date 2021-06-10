@@ -3,16 +3,19 @@ from matplotlib.pyplot import figure, show, subplots_adjust, get_cmap
 from echolab2.processing import processed_data, line
 from echolab2.plotting.matplotlib import echogram
 from echolab2.instruments import EK60
+#from echolab2.instruments import EK80
 # EK60      '/Volumes/GeringSSD/D20090916-T135430.raw'
 # EK80      '/Volumes/GeringSSD/GU1905_Acoustic/EK60/GU19_05-D20191015-T112548.raw'
 rawfiles = ['/Volumes/GeringSSD/D20090916-T135430.raw']
-
+#rawfiles = ['/Volumes/GeringSSD/GU1905_Acoustic/EK60/\
+#GU19_05-D20191101-T173021.raw']
 fig = figure()
 # Set some properties for the sub plot layout.
 subplots_adjust(left=0.11, bottom=0.1, right=0.98, top=.93, wspace=None,
                 hspace=0.9)
 
 ek60 = EK60.EK60()
+#ek60 = EK80.EK80()
 ek60.read_raw(rawfiles)
 print(ek60)
 
