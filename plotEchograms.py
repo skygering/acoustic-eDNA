@@ -38,7 +38,7 @@ echogram_2 = echogram.Echogram(ax_2, processed_power)
 ax_2.set_title("Power data in time order")
 
 cal_obj = raw_38.get_calibration()
-Sv = raw_38.get_Sv(calibation=cal_obj)
+Sv = raw_38.get_Sv(calibation=cal_obj, return_depth=True)
 print(Sv)
 
 ax_3 = fig.add_subplot(3, 1, 3)
