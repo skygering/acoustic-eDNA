@@ -29,12 +29,11 @@ def echo_plot(ek, fig, frequency, form, echo_bottom, x_lims, lower_threshold = -
     Outputs: An echogram object
     """
     fig.set_title(str(frequency) + "Hz")
-    fig.set_ylim(echo_bottom, 7.5)
+    fig.set_ylim(bottom = echo_bottom)
     fig.set_xlim(x_lims[0], x_lims[1])
     raw_data_list = ek.get_channel_data(frequencies=frequency) # get data from specific frequency
     raw_data = raw_data_list[frequency][0]
 
-    #print(dir(raw_data))
     for file in raw_data_list[frequency][1:]: 
         # if there is more than one .raw file, this appends all data of specified frequency
         raw_data.append(file)
@@ -45,6 +44,10 @@ def echo_plot(ek, fig, frequency, form, echo_bottom, x_lims, lower_threshold = -
 
     if form == "Sv": # plot Sv data
         cal_obj = raw_data.get_calibration()
+        #print(cal_obj)
+        #cal_obj.transducer_offset_z = 7.5
+        #cal_obj.drop_keel_offset = 7.5
+        #cal_obj.transducer_mounting = "DropKeel"
         Sv = raw_data.get_Sv(calibation=cal_obj, return_depth=False) # get Sv data
         Sv.transducer_draft = np.full(len(Sv.ping_time), 7.5) # sets transducer depth to 7.5 manually - might be wrong
         Sv.to_depth(cal_obj)
@@ -63,7 +66,7 @@ with open(evl_raw_file, 'r') as file_matches:
         evl_raw = file_matches.readlines()
 
 # Make dictionary with evl file keys and raw file values
-for rows in evl_raw[1:7]: # should be 1 just for testing
+for rows in evl_raw[1:3]: # should be 1 just for testing
     evl, raw = rows.split(maxsplit=1)
     evl_raw_dic[evl] = raw.split()
 ek80 = EK80.EK80()
@@ -107,6 +110,7 @@ for ctd in evl_raw_dic:
         echo_fq = echo_plot(ek80, fq[1], fq[0], "Sv", echo_bottom, x_lim, lower_threshold)
         depth_line = line.line(ping_time = dt_arr, data = depth_arr)
         echo_fq.plot_line(depth_line, linewidth=2.5, color = "black")
-    plt.savefig(ctd_path + ctd.replace(".evl", "") + "_echogram_" + str(lower_threshold) + ".png")
+    #plt.savefig(ctd_path + ctd.replace(".evl", "") + "_echogram_" + str(lower_threshold) + ".png")
+    plt.show()
     plt.close()
 
