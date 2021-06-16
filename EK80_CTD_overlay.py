@@ -29,7 +29,7 @@ def echo_plot(ek, fig, frequency, form, echo_bottom, x_lims, lower_threshold = -
     Outputs: An echogram object
     """
     fig.set_title(str(frequency) + "Hz")
-    fig.set_ylim(bottom = echo_bottom)
+    fig.set_ylim(echo_bottom, 0)
     fig.set_xlim(x_lims[0], x_lims[1])
     raw_data_list = ek.get_channel_data(frequencies=frequency) # get data from specific frequency
     raw_data = raw_data_list[frequency][0]
@@ -44,12 +44,8 @@ def echo_plot(ek, fig, frequency, form, echo_bottom, x_lims, lower_threshold = -
 
     if form == "Sv": # plot Sv data
         cal_obj = raw_data.get_calibration()
-        #print(cal_obj)
-        #cal_obj.transducer_offset_z = 7.5
-        #cal_obj.drop_keel_offset = 7.5
-        #cal_obj.transducer_mounting = "DropKeel"
-        Sv = raw_data.get_Sv(calibation=cal_obj, return_depth=False) # get Sv data
-        Sv.transducer_draft = np.full(len(Sv.ping_time), 7.5) # sets transducer depth to 7.5 manually - might be wrong
+        Sv = raw_data.get_Sv(calibration=cal_obj, return_depth=False) # get Sv data
+        Sv.transducer_draft = np.full(len(Sv.ping_time), 4.5) # sets transducer depth to 7.5 manually - might be wrong
         Sv.to_depth(cal_obj)
         return echogram.Echogram(fig, Sv, threshold=[lower_threshold,-20])
 
@@ -66,11 +62,10 @@ with open(evl_raw_file, 'r') as file_matches:
         evl_raw = file_matches.readlines()
 
 # Make dictionary with evl file keys and raw file values
-for rows in evl_raw[1:3]: # should be 1 just for testing
+for rows in evl_raw[3:5]: # should be 1 just for testing
     evl, raw = rows.split(maxsplit=1)
     evl_raw_dic[evl] = raw.split()
 ek80 = EK80.EK80()
-#print(vars(ek80))
 
 for ctd in evl_raw_dic:
     # RAW FILES
