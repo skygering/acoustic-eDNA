@@ -11,16 +11,12 @@
 # Skylar Gering 06/10/21
 ####################################################################################
 
-from matplotlib.pyplot import show
 from echolab2.instruments import EK80
 from echolab2.plotting.matplotlib import echogram
 from echolab2.processing import line, processed_data
 import matplotlib.pyplot as plt
-from datetime import datetime
-import numpy as np
-from echolab2.instruments.util.simrad_calibration import calibration
 
-def echo_plot(ek, fig, frequency, form, echo_bottom, x_lims, lower_threshold = -90):
+def echo_plot(ek, fig, frequency, form, depth_data, lower_threshold = -90):
     """
     Creates an echogram with a depth profile from CTD data overlayed over time
     Inputs: EK object (EK60 or EK80 - only EK80 tested), matplotlib figure
@@ -28,10 +24,14 @@ def echo_plot(ek, fig, frequency, form, echo_bottom, x_lims, lower_threshold = -
             if you want Sv data or Power data plotted
     Outputs: An echogram object
     """
+    # graph aesthetics
+    echo_bottom = max(depth_data.data) + 10
+    x_lims = (min(depth_data.ping_time).astype('float'), max(depth_data.ping_time).astype('float'))
     fig.set_title(str(frequency) + "Hz")
     fig.set_ylim(echo_bottom, 0)
     fig.set_xlim(x_lims[0], x_lims[1])
-    raw_data_list = ek.get_channel_data(frequencies=frequency) # get data from specific frequency
+    # get data from specific frequency
+    raw_data_list = ek.get_channel_data(frequencies=frequency)
     raw_data = raw_data_list[frequency][0]
 
     for file in raw_data_list[frequency][1:]: 
@@ -61,49 +61,28 @@ with open(evl_raw_file, 'r') as file_matches:
         evl_raw = file_matches.readlines()
 
 # Make dictionary with evl file keys and raw file values
-for rows in evl_raw[1:]: # should be 1 just for testing
+for rows in evl_raw[1:3]: # should be 1 just for testing
     evl, raw = rows.split(maxsplit=1)
     evl_raw_dic[evl] = raw.split()
 ek80 = EK80.EK80()
 
 for ctd in evl_raw_dic:
-    # RAW FILES
+    # RAW FILES READ
     raw_infiles = []
     for raw in evl_raw_dic[ctd]:
         raw_infiles.append(raw_path + raw)
     ek80.read_raw(raw_infiles)
 
-    #EVL FILES
-    with open(ctd_path + ctd, 'r') as evl_infile:
-        evl_data = evl_infile.readlines()
-    depth_data = {}
-    for rows in evl_data[2:]: # exclude the first two lines which are headers
-        rows.rstrip()
-        # Pull out the date, time, and depth (one additional variable ignored) -  all of these are strings
-        (d, t, depth, tmpVars) = rows.split(maxsplit=3)
-        dt = datetime.strptime(d + t, "%Y%m%d%H%M%S%f") # use date and time strings to make datetime object
-        depth_data[dt] = float(depth) # negate depth and make into float
-
-    dt,depth= zip(*[(dt, depth) for dt, depth in depth_data.items() if depth > 0])
-    depth_arr = np.array(depth)
-    n_pings = len(depth)
-    dt_arr = np.empty((n_pings), dtype='datetime64[ms]')
-    for i in range(n_pings):
-        dt_arr[i] = np.datetime64(dt[i])
-
-
     # PLOTTING
     fig, axs = plt.subplots(2,2, figsize=(12,10))
     fig.suptitle("Sv data with CTD depth in time order for " + ctd)
-    echo_bottom = max(depth) + 10
-    x_lim = (min(dt_arr).astype('float'), max(dt_arr).astype('float'))
 
     fq_ax = [(18000, axs[0,0]), (38000, axs[0,1]), (120000, axs[1,0]), (200000, axs[1,1])]
     # Plot 4x4 grid of each frequency for a CTD/echogram pairing
     for fq in fq_ax:
-        echo_fq = echo_plot(ek80, fq[1], fq[0], "Sv", echo_bottom, x_lim, lower_threshold)
-        depth_line = line.line(ping_time = dt_arr, data = depth_arr)
+        depth_data = processed_data.read_evl("", fq[0], ctd_path + ctd)
+        echo_fq = echo_plot(ek80, fq[1], fq[0], "Sv", depth_data, lower_threshold)
+        depth_line = line.line(ping_time = depth_data.ping_time, data = depth_data.data)
         echo_fq.plot_line(depth_line, linewidth=2.5, color = "black")
     plt.savefig(ctd_path + ctd.replace(".evl", "") + "_echogram_" + str(abs(lower_threshold)) + ".png")
     plt.close()
-
