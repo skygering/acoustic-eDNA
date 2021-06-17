@@ -44,9 +44,8 @@ def echo_plot(ek, fig, frequency, form, echo_bottom, x_lims, lower_threshold = -
 
     if form == "Sv": # plot Sv data
         cal_obj = raw_data.get_calibration()
-        Sv = raw_data.get_Sv(calibration=cal_obj, return_depth=False) # get Sv data
-        Sv.transducer_draft = np.full(len(Sv.ping_time), 4.5) # sets transducer depth to 7.5 manually - might be wrong
-        Sv.to_depth(cal_obj)
+        cal_obj.transducer_offset_z = 4.5
+        Sv = raw_data.get_Sv(calibration=cal_obj, return_depth=True) # get Sv data
         return echogram.Echogram(fig, Sv, threshold=[lower_threshold,-20])
 
 # paths and files needed
@@ -54,7 +53,7 @@ ctd_path = '/Volumes/GeringSSD/GU201905_CTD/'
 raw_path = '/Volumes/GeringSSD/GU1905_Acoustic/EK60/'
 evl_raw_file = ctd_path + "/evl_raw_matches.list"
 # lower frequency threshold for noise
-lower_threshold = -70
+lower_threshold = -90
 
 # Read in lines of evl_raw_matches.list 
 evl_raw_dic={}
@@ -62,7 +61,7 @@ with open(evl_raw_file, 'r') as file_matches:
         evl_raw = file_matches.readlines()
 
 # Make dictionary with evl file keys and raw file values
-for rows in evl_raw[3:5]: # should be 1 just for testing
+for rows in evl_raw[1:]: # should be 1 just for testing
     evl, raw = rows.split(maxsplit=1)
     evl_raw_dic[evl] = raw.split()
 ek80 = EK80.EK80()
@@ -94,7 +93,7 @@ for ctd in evl_raw_dic:
 
 
     # PLOTTING
-    fig, axs = plt.subplots(2,2, figsize=(10,10))
+    fig, axs = plt.subplots(2,2, figsize=(12,10))
     fig.suptitle("Sv data with CTD depth in time order for " + ctd)
     echo_bottom = max(depth) + 10
     x_lim = (min(dt_arr).astype('float'), max(dt_arr).astype('float'))
@@ -105,7 +104,6 @@ for ctd in evl_raw_dic:
         echo_fq = echo_plot(ek80, fq[1], fq[0], "Sv", echo_bottom, x_lim, lower_threshold)
         depth_line = line.line(ping_time = dt_arr, data = depth_arr)
         echo_fq.plot_line(depth_line, linewidth=2.5, color = "black")
-    #plt.savefig(ctd_path + ctd.replace(".evl", "") + "_echogram_" + str(lower_threshold) + ".png")
-    plt.show()
+    plt.savefig(ctd_path + ctd.replace(".evl", "") + "_echogram_" + str(abs(lower_threshold)) + ".png")
     plt.close()
 
