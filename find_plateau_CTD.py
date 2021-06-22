@@ -7,7 +7,7 @@ import math
 from math import isclose
 from scipy.linalg.lapack import _check_work_float
 from scipy.signal import savgol_filter
-from echolab2.processing import line, processed_data
+from echolab2.processing import line
 from statistics import mean
 
 def calc_slope(x1, y1, x2, y2):
@@ -46,7 +46,7 @@ for cast in cast_data[1:]:
 casts = cast_dic[1]
 
 
-depth_data = processed_data.read_evl("", 18000, ctd)
+depth_data = line.read_evl(ctd)
 x=depth_data.ping_time
 y=depth_data.data
 

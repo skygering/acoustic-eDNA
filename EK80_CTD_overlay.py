@@ -13,10 +13,11 @@
 
 from echolab2.instruments import EK80
 from echolab2.plotting.matplotlib import echogram
-from echolab2.processing import line, processed_data
+from echolab2.processing import line
 import matplotlib.pyplot as plt
+import numpy as np
 
-def echo_plot(ek, fig, frequency, form, depth_data, lower_threshold = -90):
+def echo_plot(ek, fig, frequency, form, depth_data, lower_threshold = -90, transducer_offset = 5):
     """
     Creates an echogram with a depth profile from CTD data overlayed over time
     Inputs: EK object (EK60 or EK80 - only EK80 tested), matplotlib figure
@@ -25,7 +26,7 @@ def echo_plot(ek, fig, frequency, form, depth_data, lower_threshold = -90):
     Outputs: An echogram object
     """
     # graph aesthetics
-    echo_bottom = max(depth_data.data) + 10
+    echo_bottom = max(depth_data.data) * 1.35
     x_lims = (min(depth_data.ping_time).astype('float'), max(depth_data.ping_time).astype('float'))
     fig.set_title(str(frequency) + "Hz")
     fig.set_ylim(echo_bottom, 0)
@@ -44,7 +45,7 @@ def echo_plot(ek, fig, frequency, form, depth_data, lower_threshold = -90):
 
     if form == "Sv": # plot Sv data
         cal_obj = raw_data.get_calibration()
-        cal_obj.transducer_offset_z = 4.5
+        cal_obj.transducer_offset_z = transducer_offset
         Sv = raw_data.get_Sv(calibration=cal_obj, return_depth=True) # get Sv data
         return echogram.Echogram(fig, Sv, threshold=[lower_threshold,-20])
 
@@ -61,7 +62,7 @@ with open(evl_raw_file, 'r') as file_matches:
         evl_raw = file_matches.readlines()
 
 # Make dictionary with evl file keys and raw file values
-for rows in evl_raw[1:3]: # should be 1 just for testing
+for rows in evl_raw[1:]: # should be 1 just for testing
     evl, raw = rows.split(maxsplit=1)
     evl_raw_dic[evl] = raw.split()
 ek80 = EK80.EK80()
@@ -78,11 +79,18 @@ for ctd in evl_raw_dic:
     fig.suptitle("Sv data with CTD depth in time order for " + ctd)
 
     fq_ax = [(18000, axs[0,0]), (38000, axs[0,1]), (120000, axs[1,0]), (200000, axs[1,1])]
+
+    depth_line = line.read_evl(ctd_path + ctd)
+    bad_inx = []
+    for i in range(len(depth_line.data)):
+        if depth_line.data[i] < 0:
+            bad_inx.append(i)
+    depth_line.data = np.delete(depth_line.data, bad_inx)
+    depth_line.ping_time = np.delete(depth_line.ping_time, bad_inx)
+
     # Plot 4x4 grid of each frequency for a CTD/echogram pairing
     for fq in fq_ax:
-        depth_data = processed_data.read_evl("", fq[0], ctd_path + ctd)
-        echo_fq = echo_plot(ek80, fq[1], fq[0], "Sv", depth_data, lower_threshold)
-        depth_line = line.line(ping_time = depth_data.ping_time, data = depth_data.data)
+        echo_fq = echo_plot(ek80, fq[1], fq[0], "Sv", depth_line, lower_threshold)
         echo_fq.plot_line(depth_line, linewidth=2.5, color = "black")
     plt.savefig(ctd_path + ctd.replace(".evl", "") + "_echogram_" + str(abs(lower_threshold)) + ".png")
     plt.close()
