@@ -3,10 +3,12 @@ import numpy as np
 import json
 import math
 from math import isclose
-from numpy.ma import mod
+from numpy.ma import mod, sort
 from scipy.signal import savgol_filter
 from echolab2.processing import line
 from statistics import mean
+import matplotlib.dates as mdates
+import os
 
 def read_casts(infile):
     '''
@@ -45,94 +47,139 @@ def to_float(x):
         val = math.nan
     return val
 
-def plot_segments(segments):
+def create_segments(atol_zero, x, y):
+    x_hat = [num.astype("float") for num in x]
+    y_hat = savgol_filter(y, 21, 1)
+
+    seg_num = 0
+    segments = {}
+    current_slope = calc_slope(x_hat[0], y_hat[0], x_hat[1], y_hat[1])
+    segments = new_segment(segments, seg_num, isclose(current_slope, 0, abs_tol= atol_zero))
+
+    for j in range(len(x)-1):
+        x_j = np.datetime_as_string(x[j])
+        y_j = float(y[j])
+        new_slope = calc_slope(x_hat[j], y_hat[j], x_hat[j+1], y_hat[j+1])
+        new_bottle = isclose(new_slope, 0, abs_tol= atol_zero)
+        if segments[seg_num]["bottle"] == new_bottle: # we are still on the same segment - be that plateau or otherwise
+            segments[seg_num]["points"].append((x_j, y_j)) # add in current point
+        else: # we have now switched to a new type of segment
+            if len(segments[seg_num]["points"]) > 5: # if the previous segment is more than 2 points long
+                seg_num += 1
+                segments = new_segment(segments, seg_num, new_bottle) # makes empty new segment
+                segments[seg_num]["points"].append((x_j, y_j)) # Adds current point to new segment
+            else: # short previous segment - due to noise (too short to be actual segment)
+                segments[seg_num-1]["points"] += segments[seg_num]["points"] # add glitch points to previous segment
+                segments[seg_num-1]["points"].append((x_j, y_j)) # add new point to previous segment 
+                # since we only switch segments when they are diff type, previous and current must be same type with "glitch" inbetween 
+                del segments[seg_num] # delete "glitch segment"
+                seg_num -= 1
+    segments[seg_num]["points"].append((np.datetime_as_string(x[-1]), float(y[-1]))) # add the last point to last segment
+    return segments
+
+
+def plot_segments(segments, title = "CTD Track: Depth vs Time"):
+    fig, ax = plt.subplots()
     for num in segments:
         style = 'r-'
         if segments[num]["bottle"]:
             style = 'b-'
             if segments[num]["usable"]:
                 style = 'b:'
-
         x_seg, y_seg = zip(*segments[num]["points"])
         x_seg = [np.datetime64(date) for date in x_seg]
-        plt.plot(x_seg, y_seg, style)
+        ax.plot(x_seg, y_seg, style)
+    fig.autofmt_xdate()
+    xfmt = mdates.DateFormatter('%H:%M')
+    ax.xaxis.set_major_formatter(xfmt)
+    ax.set_title(title)
+    ax.set_xlabel("Time (H:M)")
+    ax.set_ylabel("Depth (m)")
+    ax.invert_yaxis()
     plt.show()
+
+
+def usable_samples(segments, atol_depth, casts):
+    for num in range(len(segments)):
+        seg = segments[num]
+        if seg["bottle"]:
+            times, depths = zip(*seg["points"])
+            seg["depth"] = mean(depths)
+            for sample_depth in casts:
+                if isclose(seg["depth"], sample_depth, abs_tol=atol_depth) and seg["depth"] >= 5 and sample_depth >=5:
+                    seg["usable"] = True
+    return segments
+
+def check_segments(segments, x, y):
+    print("Number of segments found with this parameter: ")
+    print(len(segments))
+    print("The CTD track should be seperated into ascents/descents (red) and plateaus (blue). The plateaus are where data was taken. \n\
+Do the number of segments above match the total number of ascents/descents/plateaus and are they tagged with the right color? [y/n]")
+    plot_segments(segments)
+    correct_graph = input()
     plt.close()
+    if correct_graph.lower() != "y":
+        print("Please enter a new value for the absolute tolerance. Go up by 0.00001 if too many segments. Go down by same amount if too few.")
+        new_atol_zero = float(input())
+        segments = create_segments(new_atol_zero, x, y)
+        segments = check_segments(segments, x, y)
+    return segments
 
-# Read in depths at which eDNA measurments were taken for each cast
-cast_dic = read_casts('/Volumes/GeringSSD/eDNA_cast.txt')
+def check_samples(segments, casts):
+    print("Expected, usable (below transducer depth) eDNA sample depths: ")
+    print([c for c in casts if c > 5])
+    found_samples = []
+    for num in segments:
+        seg = segments[num]
+        if seg["usable"]:
+            found_samples.append(round(seg["depth"], 2))
+    print("Found, usable eDNA sample depths in segments: ")
+    print((sort(found_samples)))
 
-casts = cast_dic[3] # which cast
-ctd = '/Volumes/GeringSSD/GU201905_CTD/ctd003.evl' # which CTD
-outfile_path = '/Volumes/GeringSSD/segments_cdt003.json'
-depth_data = line.read_evl(ctd)
-
-x=depth_data.ping_time
-y=depth_data.data
-x_hat = [num.astype("float") for num in x]
-window_len = int(len(x) * 0.05)
-
-y_hat = savgol_filter(y, 21, 1)
-
-
-# adjust for best results
-atol_zero = max(y)*3.16E-7 + 9.6E-5
-print("Absolute Total (atol):")
-print(round(atol_zero, 5))
-
-# setup for segments
-seg_num = 0
-segments = {}
-current_slope = calc_slope(x_hat[0], y_hat[0], x_hat[1], y_hat[1])
-segments = new_segment(segments, seg_num, isclose(current_slope, 0, abs_tol= atol_zero))
-
-for j in range(len(x)-1):
-    x_j = np.datetime_as_string(x[j])
-    y_j = float(y[j])
-    new_slope = calc_slope(x_hat[j], y_hat[j], x_hat[j+1], y_hat[j+1])
-    new_bottle = isclose(new_slope, 0, abs_tol= atol_zero)
-    if segments[seg_num]["bottle"] == new_bottle: # we are still on the same segment - be that plateau or otherwise
-        segments[seg_num]["points"].append((x_j, y_j)) # add in current point
-    else: # we have now switched to a new type of segment
-        if len(segments[seg_num]["points"]) > 5: # if the previous segment is more than 2 points long
-            seg_num += 1
-            segments = new_segment(segments, seg_num, new_bottle) # makes empty new segment
-            segments[seg_num]["points"].append((x_j, y_j)) # Adds current point to new segment
-        else: # short previous segment - due to noise (too short to be actual segment)
-            segments[seg_num-1]["points"] += segments[seg_num]["points"] # add glitch points to previous segment
-            segments[seg_num-1]["points"].append((x_j, y_j)) # add new point to previous segment 
-            # since we only switch segments when they are diff type, previous and current must be same type with "glitch" inbetween 
-            del segments[seg_num] # delete "glitch segment"
-            seg_num -= 1
-segments[seg_num]["points"].append((np.datetime_as_string(x[-1]), float(y[-1]))) # add the last point to last segment
-
-print("Number of segments with these parameters:")
-print(len(segments))
-
-print("Close out of the graph once you have determined if it has the correct number of segments.")
-plot_segments(segments)
-
-print("Did the graph look correct?")
-input1 = input()
-print(input1)
-
-atol_depth = 2
-print("Depth variance to find eDNA casts:")
-print(atol_depth)
-
-for num in range(len(segments)):
-    seg = segments[num]
-    if seg["bottle"]:
-        times, depths = zip(*seg["points"])
-        seg["depth"] = mean(depths)
-        for cast_depth in casts:
-            if isclose(seg["depth"], cast_depth, abs_tol=atol_depth) and cast_depth >= 5:
-                seg["usable"] = True
+    print("The usable eDNA samples found should be displayed above and identifed with dotted lines on the graph. Are all expected eDNA sample depths found? [y/n]")
+    plot_segments(segments)
+    correct_graph = input()
+    plt.close()
+    if correct_graph.lower() != "y":
+        print("Please enter a new value for absolute tolerance to find eDNA sample depths. Go up by 0.5 to 1m if too few samples. Go down by same amount if too many.")
+        new_atol_depth = float(input())
+        for num in segments:
+            segments[num]["usable"] = False
+        segments = usable_samples(segments, new_atol_depth, casts)
+        segments = check_samples(segments, casts)
+    return segments
 
 
 
-plot_segments(segments)
+def make_segments_json(eDNA_cast_depths, ctd_evl_file, outfile_path):
+    plt.ion()
+    depth_data = line.read_evl(ctd_evl_file)
+    x=depth_data.ping_time
+    y=depth_data.data
+    print("***Analyzing " + os.path.basename(ctd_evl_file).replace(".evl", "") + "***")
+    print("SEGMENTATION")
+    # adjust for best results
+    atol_zero = max(y)*3.16E-7 + 9.6E-5
+    print("Absolute Tolerance (maximum absolute distance a slope can be from 0 to be classified as a plateau): ")
+    print(round(atol_zero, 5))
+
+    segments = create_segments(atol_zero, x, y)
+
+    # setup for segments
+
+    segments = check_segments(segments, x, y)
+
+    print("\nSAMPLE DEPTHS")
+    atol_depth = 2
+    print("Absolute tolerance of eDNA sample depths (maximim distance plateu's mean depth differ \
+from recorded sample depth to be classified as sample site): ")
+    print(atol_depth)
+    
+    segments = usable_samples(segments, atol_depth, eDNA_cast_depths)
+    segments = check_samples(segments, eDNA_cast_depths)
+    
+    print("Saving .json file with segment classification.\n")
+    with open(outfile_path, 'w') as outfile:
+        json.dump(segments, outfile)
 
 
-with open(outfile_path, 'w') as outfile:
-    json.dump(segments, outfile)
