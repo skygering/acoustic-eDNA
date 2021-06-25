@@ -32,7 +32,7 @@ for filepath in raw_list:
     start_dt = datetime.strptime(date[1:] + time[1:], "%Y%m%d%H%M%S") # Start of acoustic data collection for file
     date_raw_dic[start_dt] = file # Dictionary of start times and .raw files
 
-outfile = open(path + "/evl_raw_matches.list", 'w')
+outfile = open(os.path.normpath(path + "/" + cruise + "_evl_raw_matches.list"), 'w')
 headerline = 'Cruise ' + cruise + " CTD and matching acoustic (.raw) files"
 outfile.write(headerline+'\n')
 
