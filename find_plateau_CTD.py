@@ -28,7 +28,7 @@ def calc_slope(x1, y1, x2, y2):
     Calculated and returns the slope from two x and two y values representing two points
     Assumes points have different x values
     '''
-    return (y2 - y1)/(x2 - x1)
+    return (y2 - y1)/(x2 - x1) # what if data is a "bad" data point?
 
 def new_segment(segments, seg_num, bottle):
     ''' 
@@ -106,7 +106,7 @@ def usable_samples(segments, atol_depth, casts):
             times, depths = zip(*seg["points"])
             seg["depth"] = mean(depths)
             for sample_depth in casts:
-                if isclose(seg["depth"], sample_depth, abs_tol=atol_depth) and seg["depth"] >= 5 and sample_depth >=5:
+                if isclose(seg["depth"], sample_depth, abs_tol=atol_depth) and seg["depth"] >= 5 and sample_depth >=5: # 5s are transducer depth - make not magic number
                     seg["usable"] = True
     return segments
 
@@ -127,7 +127,7 @@ Do the number of segments above match the total number of ascents/descents/plate
 
 def check_samples(segments, casts):
     print("Expected, usable (below transducer depth) eDNA sample depths: ")
-    print([c for c in casts if c > 5])
+    print([c for c in casts if c > 5]) # this 5 is transducer depth - make not a magic number
     found_samples = []
     for num in segments:
         seg = segments[num]
@@ -179,7 +179,7 @@ from recorded sample depth to be classified as sample site): ")
     segments = check_samples(segments, eDNA_cast_depths)
     
     print("Saving .json file with segment classification.\n")
-    with open(outfile_path, 'w') as outfile:
+    with open(outfile_path, 'w') as outfile: # might be better to only save the  "usable" segments and then note the min/max depth and min/max time
         json.dump(segments, outfile)
 
 

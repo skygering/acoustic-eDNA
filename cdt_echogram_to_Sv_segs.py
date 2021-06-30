@@ -36,11 +36,11 @@ print(png_list)
 plotting.plot_evl(evl_list[21], png_list[21], evl_path=ctd_path, png_path="/Volumes/GeringSSD")
 
 
-#eDNA_cast_dic = find_plateau_CTD.read_casts('/Volumes/GeringSSD/eDNA_cast.txt')
-#outfile_path = '/Volumes/GeringSSD/GU201905_CTD_JSON/'
+eDNA_cast_dic = find_plateau_CTD.read_casts('/Volumes/GeringSSD/eDNA_cast.txt')
+outfile_path = '/Volumes/GeringSSD/GU201905_CTD_JSON/'
 
 
-#evl_list = plot_CTD_data.evl_list(ctd_path+ctd_list)
-#for i in range(len(evl_list)):
-#    outfile = outfile_path + os.path.basename(evl_list[i]).replace(".evl", "") + "_segments.json"
-#    find_plateau_CTD.make_segments_json(eDNA_cast_dic[i+1], evl_list[i], outfile)
+evl_list = plot_CTD_data.evl_list(ctd_path+ctd_list)
+for i in range(len(evl_list)):
+    outfile = outfile_path + os.path.basename(evl_list[i]).replace(".evl", "") + "_segments.json"
+    find_plateau_CTD.make_segments_json(eDNA_cast_dic[i+1], evl_list[i], outfile)
