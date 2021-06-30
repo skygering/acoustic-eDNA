@@ -1,4 +1,5 @@
 import json
+import csv
 import numpy as np
 from echolab2.instruments import EK80
 from echolab2.plotting.matplotlib import echogram
