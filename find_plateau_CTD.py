@@ -28,7 +28,7 @@ def calc_slope(x1, y1, x2, y2):
     Calculated and returns the slope from two x and two y values representing two points
     Assumes points have different x values
     '''
-    return (y2 - y1)/(x2 - x1) # what if data is a "bad" data point?
+    return (y2 - y1)/(x2 - x1)
 
 def new_segment(segments, seg_num, bottle):
     ''' 

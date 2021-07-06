@@ -92,5 +92,6 @@ for ctd in evl_raw_dic:
     for fq in fq_ax:
         echo_fq = echo_plot(ek80, fq[1], fq[0], "Sv", depth_line, lower_threshold)
         echo_fq.plot_line(depth_line, linewidth=2.5, color = "black")
-    plt.savefig(ctd_path + ctd.replace(".evl", "") + "_echogram_" + str(abs(lower_threshold)) + ".png")
+    #plt.savefig(ctd_path + ctd.replace(".evl", "") + "_echogram_" + str(abs(lower_threshold)) + ".png")
+    plt.show()
     plt.close()

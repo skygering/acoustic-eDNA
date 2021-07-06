@@ -59,8 +59,8 @@ def update_Sv(Sv, xlim, ylim):
 #     return Sv_bins, depth_bins
 transducer_offset = 5
 frequency_list = [18000, 38000, 120000, 200000]
-toffset = 0
-doffset = 0.5
+toffset = 1 #needs to be integers...maybe should do seconds
+doffset = 1
 
 ctd_path = '/Volumes/GeringSSD/GU201905_CTD'
 ctd_list = '/CTDtoEVL.list'
@@ -68,22 +68,11 @@ evl_raw_list = ctd_path + "/evl_raw_matches.list"
 raw_path = "/Volumes/GeringSSD/GU1905_Acoustic/EK60"
 json_path = '/Volumes/GeringSSD/GU201905_CTD_JSON/'
 
-# should be a function - it is both here and in processing - GET ASC FILES
-with open(ctd_path + ctd_list, 'r') as infile:
-    ctd_files = infile.readlines() # read in each CDT file name and the toffset
-asc_files = []
-for ctd in ctd_files:
-    # Get the filename and replace .asc with .evl - you now have all .evl filenames
-    (file, _) = ctd.split(',')
-    asc_files.append(file)
+# get a list of asc files
+asc_files = process.asc_from_list(ctd_path + ctd_list)
 
 # This should be a function ...  it is in both overlay and here - GET RAW FILES
-evl_raw_dic={}
-with open(evl_raw_list, 'r') as file_matches:
-        evl_raw = file_matches.readlines()
-for rows in evl_raw[1:]:
-    evl, raw = rows.split(maxsplit=1)
-    evl_raw_dic[evl] = raw.split()
+evl_raw_dic=process.evl_raw_dic_from_file(evl_raw_list)
 
 # Start here
 evl_files = process.cast_new_extension(asc_files, ".asc", ".evl")
@@ -91,9 +80,8 @@ json_files = process.cast_new_extension(asc_files, ".asc", ".json", "segments")
 
 json_dic = {}
 for i in range(len(json_files)):
-    print(json_files[i])
-    json_segs = {}
-    json_dic[evl_files[i].replace(".evl", "")] = {"segs":json_segs}
+    depth_dic = {}
+    json_dic[evl_files[i].replace(".evl", "")] = depth_dic
     json_file = open(os.path.normpath(json_path + json_files[i]))
     segment_dic = json.load(json_file)
 
@@ -106,14 +94,14 @@ for i in range(len(json_files)):
         seg = segment_dic[num]
         if seg["usable"]:
             y_mean = float(seg["depth"])
-            sample_dic = {"depth": round(y_mean)}
-            json_segs[str(seg_n)] = sample_dic
+            fq_dic = {}
+            depth_dic[round(y_mean)] = fq_dic
             points_time, points_depth = zip(*seg["points"])
             points_time = [np.datetime64(x) for x in points_time]
             y_min = y_mean - doffset
             y_max = y_mean + doffset
-            x_min = min(points_time) - toffset
-            x_max = max(points_time) + toffset
+            x_min = min(points_time) - np.timedelta64(toffset, 'm') # shoud this be from the median??
+            x_max = max(points_time) + np.timedelta64(toffset, 'm')
 
             for frequency in frequency_list:
                 raw_data_list = ek80.get_channel_data(frequencies=frequency)
@@ -122,7 +110,7 @@ for i in range(len(json_files)):
                     raw_data.append(file)
                 cal_obj = raw_data.get_calibration()
                 cal_obj.transducer_offset_z = transducer_offset
-                Sv = raw_data.get_Sv(calibration=cal_obj, return_depth=True)
+                Sv = raw_data.get_Sv(calibration=cal_obj, return_depth=True, resample_interval = raw_data.RESAMPLE_LONGEST)
 
                 depths = np.array(Sv.depth)
                 y_min_idx = np.argmin(np.abs(depths - y_min))
@@ -133,7 +121,7 @@ for i in range(len(json_files)):
                 x_max_idx = np.argmin(np.abs(times - x_max))
 
                 subset_Sv = update_Sv(copy.deepcopy(Sv), (x_min_idx, x_max_idx), (y_min_idx, y_max_idx))
-                sample_dic[str(frequency)] = subset_Sv.data.tolist()
+                fq_dic[str(frequency)] = subset_Sv.data.tolist()
             seg_n += 1
                 
                 #fig, axs = plt.subplots()

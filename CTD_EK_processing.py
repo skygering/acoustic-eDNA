@@ -8,7 +8,7 @@ import glob
 
 def asc_to_evl(ctd_list_fn, infile_path, outfile_path, echoview_version = "EVBD 3 9.0.298.34146"):
     '''
-    asc_to_evl: takes a file of .asc files and time offsets for cast relative to acoustic data and writes .evl files;
+    asc_to_evl: takes a file with a list of .asc files and time offsets for cast relative to acoustic data and writes .evl files;
                 each .evl file has sample times, mean depth, and status of the data (3 if good, 2 if depth is negative of NaN)
    
     Inputs: 
@@ -88,6 +88,30 @@ def asc_to_evl(ctd_list_fn, infile_path, outfile_path, echoview_version = "EVBD 
         outfile.close() # close outfile
             
 
+def asc_from_list(ctd_list_fn):
+    '''
+    asc_from_list: takes a file with a list of .asc files and time offsets for cast relative to acoustic data and
+                   returns a list of all of the .asc files
+    Inputs: ctd_list_fn (string) - file name (suggested name 'CTDtoEVL.list') for a file which has the following format with example below:
+
+                Format: example_ctd.asc, toffset (** Note this is for one line of the file **)
+                Example: ctd001.asc, 0
+
+                where example_ctd.asc is the name of the CTD cast and toffset is the time offset in seconds for that cast 
+                relative to the acoustic data. Repeat the format on each line of the file for each cast.
+            *This is a file needed for asc to evl - this function is to make further use of that file
+    Outputs: a string list of .asc file names from ctd_list_fn
+    '''
+    ctd_list_fn = os.path.normpath(ctd_list_fn)
+    with open(ctd_list_fn, 'r') as infile:
+        ctd_files = infile.readlines() # read in each CDT file name and the toffset
+    asc_files = []
+    for ctd in ctd_files:
+        # Get the filename and replace .asc with .evl - you now have all .evl filenames
+        (file, _) = ctd.split(',')
+        asc_files.append(file)
+    return asc_files
+
 def cast_new_extension(ctd_file_list, old_extension, new_extension, descriptor=""):
     """
     cast_new_extension: takes a list of filenames with the same extensions and replaces the extensions with new extensions;
@@ -166,3 +190,23 @@ def match_raw_evl(evl_files_list, raw_files_list, outfile_path = "", evl_inpath 
 
     return evl_raw_dic
 
+def evl_raw_dic_from_file(evl_raw_file):
+    '''
+    evl_raw_dic_from_file: reads in file of evl raw matchs and
+                           creates a dictionary
+    Input: evl_raw_file (string file name and path): path/filename of evl raw match file created by match_raw_evl
+           function:
+           Format: example_cast.evl raw_overlap_1.raw raw_overlap_2.raw
+           Example: ctd017.evl GU19_05-D20191027-T140551.raw GU19_05-D20191027-T143423.raw
+
+           There is one line per CTD cast
+    Output: Dictionary with .evl file names as keys with a list of .raw files that overlap in time as the keys
+    '''
+    evl_raw_file = os.path.normpath(evl_raw_file)
+    evl_raw_dic={}
+    with open(evl_raw_file, 'r') as file_matches:
+        evl_raw = file_matches.readlines()
+    for rows in evl_raw[1:]:
+        evl, raw = rows.split(maxsplit=1)
+        evl_raw_dic[evl] = raw.split()
+    return evl_raw_dic

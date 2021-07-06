@@ -18,7 +18,8 @@ datapath = "x:/Butterfish"
 outpath = "x:/Butterfish"
 
 # Frequencies in kHz
-f=c(18,38,70,120,200)
+#f=c(18,38,70,120,200)
+f=c(38,125,200, 455)
 
 # Inverse frequencies
 e_f=1/f
