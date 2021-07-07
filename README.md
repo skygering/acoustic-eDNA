@@ -44,9 +44,10 @@ Finally, this .json file or dictionary can be subset into
 
 ### Plotting
 
-Now that we have a dictionary of evl files to matching raw files, we can overlay the two to visualize them. 
+We are able to plot the CTD traces using `plot_evl`. for this, we just need a matplotlib pyplot axis to plot on and a .evl file.
 
+We can also plot an echogram using `plot_echo`. This relies heavily on pyEcholab's `echogram` function and simply adds additional aesthetic features. 
 
+We can also overlay a CTD trace over an echogram by passing the echogram returned by `plot_echo` into `plot_evl_trace` with an axis and a .evl trace.
 
-
-
+Finally, we can plot a segment dictionary created by `create_segments_dic` and then `mark_usable_depth` in the same pattern used by the `interactive_segment_maker`. 
