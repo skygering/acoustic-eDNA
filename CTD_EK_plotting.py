@@ -3,6 +3,7 @@ import os
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from echolab2.plotting.matplotlib import echogram
+import numpy as np
 
 def plot_evl(ax, evl_infile, evl_path=""):
     '''
@@ -87,5 +88,38 @@ def plot_evl_trace(echo_plot, ax, trace_infn, trace_path = "", zoom = True):
         ax.set_ylim(echo_bottom, 0)
         ax.set_xlim(x_lims[0], x_lims[1])
     return echo_plot
+
+
+def plot_segments(segments, title = "CTD Track: Depth vs Time"):
+    '''
+    plot_segments: plotting function designed for verification of segment seperation success after running 
+                   create_segments_dic() or mark_usable_depth() 
+    Inputs: segments (nested dictionary) - segment dictionary created by create_segments_dic function
+            title (string) - optional string title for graph
+    Outputs: shows a graph with ascents and decents marked in red, plateaus in blue, and usable segments
+             with dotted blue for easy vertification
+    Note: This is used in CTD_EK_processing.py for segment creation vertification
+    '''
+    fig, ax = plt.subplots()
+    for num in segments:
+        style = 'r-'
+        if segments[num]["bottle"]:
+            style = 'b-'
+            if segments[num]["usable"]:
+                style = 'b:'
+        x_seg, y_seg = zip(*segments[num]["points"])
+        x_seg = [np.datetime64(date) for date in x_seg]
+        ax.plot(x_seg, y_seg, style)
+
+    # plot aesthetics
+    fig.autofmt_xdate()
+    xfmt = mdates.DateFormatter('%H:%M')
+    ax.xaxis.set_major_formatter(xfmt)
+    ax.set_title(title)
+    ax.set_xlabel("Time (H:M)")
+    ax.set_ylabel("Depth (m)")
+    ax.invert_yaxis()
+    plt.show()
+
 
 

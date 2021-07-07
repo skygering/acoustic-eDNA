@@ -1,5 +1,4 @@
 import json
-import csv
 import numpy as np
 from echolab2.instruments import EK80
 from echolab2.plotting.matplotlib import echogram
@@ -18,45 +17,7 @@ def update_Sv(Sv, xlim, ylim):
     Sv.n_pings = len(Sv.ping_time)
     return Sv
 
-# def bins_Sv(Sv, Sv_depth, bin_size):
-#     n_bins = round(Sv_depth/bin_size) # both in meters
-#     n_rows = len(Sv.depth)
-#     rows_per_bin = round(n_rows/n_bins) # unless multiple, rounds up or down
-#     Sv_bins = np.zeros((len(Sv.data), n_bins))
-#     Sv_bins_2 = copy.deepcopy(Sv_bins)
-#     print(Sv_bins_2.shape)
-#     depth_bins = np.zeros(n_bins)
-#     bin = 0
-#     for i in range(n_rows):
-#         Sv_bins[:, bin] = [10**x + y for x, y in zip(Sv.data[:, i], Sv_bins[:, bin])]
-#         depth_bins[bin] += Sv.depth[i]
-#         if (i+1) % rows_per_bin == 0:
-#             print("hi")
-#             Sv_bins[:, bin] = [np.log10(x/rows_per_bin) for x in Sv_bins[:, bin]]
-#             depth_bins[bin] /= rows_per_bin
-#             bin += 1
-#         elif i == n_rows -1:
-#             last_bin_size = n_rows % rows_per_bin
-#             Sv_bins[:, bin] = [np.log10(x/last_bin_size) for x in Sv_bins[:, bin]]
-#             depth_bins[bin] /= last_bin_size
 
-#     current_row = 1
-#     for bin in range(n_bins):
-#         print(bin)
-#         print(Sv.data[:,bin * rows_per_bin:])
-#         if bin < n_bins -1:
-#             Sv_bins_2[:, bin] = np.array([10**x for row in Sv.data[:,bin * rows_per_bin:rows_per_bin*bin+1] for x in row])
-#             Sv_bins_2[:, bin] = np.log10(np.sum(Sv_bins_2[:, bin])/rows_per_bin)
-#         else:
-#             row_per_last_bin = n_rows - bin*rows_per_bin
-#             print(np.array([10**x for row in Sv.data[:,(bin * rows_per_bin) : ] for x in row]).shape) # somehow this is 3 times too big :(
-#             Sv_bins_2[:, bin] = np.array([10**x for row in Sv.data[:,bin * rows_per_bin:] for x in row])
-#             Sv_bins_2[:, bin] = np.log10(np.sum(Sv_bins_2[:, bin])/row_per_last_bin)
-
-#     print(Sv_bins_2)
-#     print(depth_bins)
-#     print(Sv_bins)
-#     return Sv_bins, depth_bins
 transducer_offset = 5
 frequency_list = [18000, 38000, 120000, 200000]
 toffset = 1 #needs to be integers...maybe should do seconds

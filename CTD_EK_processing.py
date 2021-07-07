@@ -5,6 +5,13 @@ import numpy as np
 import os
 import math
 import glob
+from math import isclose
+from scipy.signal import savgol_filter
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+from numpy.ma import mod, sort
+import json
+import CTD_EK_plotting as plotting
 
 def asc_to_evl(ctd_list_fn, infile_path, outfile_path, echoview_version = "EVBD 3 9.0.298.34146"):
     '''
@@ -210,3 +217,236 @@ def evl_raw_dic_from_file(evl_raw_file):
         evl, raw = rows.split(maxsplit=1)
         evl_raw_dic[evl] = raw.split()
     return evl_raw_dic
+
+def to_float(x):
+        '''
+        to_float: Attempts to turn value x into a float - returns NaN otherwise
+        '''
+        try:
+            val = float(x)
+        except:
+            val = math.nan
+        return val
+
+def read_casts(infile):
+    '''
+    read_casts: reads in a file that notes the cast and the depths at which usable samples (eDNA samples) were taken
+    Input: infile (string) - path + filename to a file with cast and depths of eDNA samples
+                             Format: cast_num eDNA_depth
+                             Example: 1 10 47
+                             Note: There is a header ("cast eDNA")
+    Output: cast_dic (dictionary) - dictionary with keys as cast numbers and values as a list of depths were eDNA samples were taken
+    '''
+    with open(infile, 'r') as cast_file:
+        cast_data = cast_file.readlines()
+    cast_dic = {}
+    for cast in cast_data[1:]: # excludes header
+        num, depths = cast.split(maxsplit=1)
+        depths = [to_float(x) for x in depths.strip().split()]
+        cast_dic[int(num)] = depths
+    return cast_dic
+
+
+def create_segments_dic(x, y, atol_zero):
+    '''
+    create_segments_dic: takes depth (y) over time (x) data from a CTD trace and splits it into segments by slope to
+                         identify plateau's in the trace where water bottle data was collected
+    Inputs: x (list of numpy64 datetime objects) - times in the CTD trace
+            y (list of floats) - depths of the CTD trace over time
+            atol_zero (float) - magnitude of the the minimum absolute tolerance when determining if two numbers are approimatly zero -
+                                number will probably be suprisingly small - try 0.00002 to start
+    Outputs: segment dictionary - nested dictionary; outermost keys are segment number (i.e. 0, 1, 2), followed by the following structure for each
+                                  segment:
+                                  Format: 'bottle': True/False, "depth": float/math.nan, "usable": False, "points" : [all points]
+
+                                  -If the slope of a segment is approximatly 0, as determined by the atol_zero parameter, then a water bottle 
+                                  sample was collected so 'bottle' is True, else False
+                                  -If 'bottle' is True, the mean depth of the segment is recorded under 'depth' key, else it is math.nan
+                                  -The 'usable' keys are all set to false here - they can be set to mark eDNA sample locations with the 
+                                   mark_usable_segments function below
+                                  -The 'points' key is followed by tuples of time/depth points (x,y) that are in the segment
+    '''
+
+    def calc_slope(x1, y1, x2, y2):
+        '''
+        calc_slope: calculate and return the slope from two x and two y values representing two points
+        Inputs: x1 (float/int): x value of first point; y1 (float/int) - y value of first point
+                x2 (float/int): x value of second point; y2 (float/int) - y value of second point
+        Outputs: float slope between the two points
+        Warning: Assumers that the x values of the two points are different to avoid divide by 0 error
+        '''
+        return (y2 - y1)/(x2 - x1)
+
+    def new_segment(segments, seg_num, bottle):
+        ''' 
+        new_segment: adds a new segment to the segment dictionary
+        Inputs: segments (nested dictionary of segments) - current dictionary
+                seg_num (int) - number of new segment; will be the key for new segment
+                bottle (boolean) - True if slope of new segment is approximatly 0, False otherwise
+        Outputs: segments - updated segment dictionary with new added segment
+        '''
+        segments[seg_num] = {'bottle': bottle, "depth": math.nan, "usable": False, "points" : []}
+        return segments
+    # create_segments_dic starts here
+    x_hat = [num.astype("float") for num in x] # turns numpy64 datetime objects into floats
+    y_hat = savgol_filter(y, 21, 1) # smooths the data into somewhat linear segments
+
+    seg_num = 0
+    segments = {}
+    current_slope = calc_slope(x_hat[0], y_hat[0], x_hat[1], y_hat[1])
+    segments = new_segment(segments, seg_num, isclose(current_slope, 0, abs_tol= atol_zero))
+
+    for j in range(len(x)-1):
+        x_j = np.datetime_as_string(x[j])
+        y_j = float(y[j])
+        new_slope = calc_slope(x_hat[j], y_hat[j], x_hat[j+1], y_hat[j+1])
+        new_bottle = isclose(new_slope, 0, abs_tol= atol_zero)
+        if segments[seg_num]["bottle"] == new_bottle: # we are still on the same segment - be that plateau or otherwise
+            segments[seg_num]["points"].append((x_j, y_j)) # add in current point
+        else: # we have now switched to a new type of segment
+            if len(segments[seg_num]["points"]) > 5: # if the previous segment is more than 2 points long
+                seg_num += 1
+                segments = new_segment(segments, seg_num, new_bottle) # makes empty new segment
+                segments[seg_num]["points"].append((x_j, y_j)) # Adds current point to new segment
+            else: # short previous segment - due to noise (too short to be actual segment)
+                segments[seg_num-1]["points"] += segments[seg_num]["points"] # add glitch points to previous segment
+                segments[seg_num-1]["points"].append((x_j, y_j)) # add new point to previous segment 
+                # since we only switch segments when they are diff type, previous and current must be same type with "glitch" inbetween 
+                del segments[seg_num] # delete "glitch segment"
+                seg_num -= 1
+    segments[seg_num]["points"].append((np.datetime_as_string(x[-1]), float(y[-1]))) # add the last point to last segment
+    return segments
+
+def mark_usable_depth(segments, cast_depths, transducer_depth, atol_depth = 2):
+    '''
+    mark_usable_segments: given a segment dictionary and a list of depths of eDNA samples for each cast, mark the 'usable' tag in the
+                          segment dictionary True if a segment is at an eDNA sample depth and leave it as false otherwise
+    Inputs: segments (nested dictionary) - segment dictionary created by create_segments_dic function
+            casts (numeric list) - list of depths eDNA samples were taken at during current cast
+            atol_depth (float) - the minimum absolute difference in meters that the mean depth of the segment can differ from the depth
+                                 specified in the cast file
+    Outputs: segment dictionary with "usable" tags updated and "depth" 
+    '''
+    for num in range(len(segments)):
+        seg = segments[num]
+        if seg["bottle"]: # only segments with water samples taken could be a eDNA sample site
+            times, depths = zip(*seg["points"])
+            seg["depth"] = mean(depths) # calculates mean depth of segments and saves in segments
+            for sample_depth in cast_depths:
+                if isclose(seg["depth"], sample_depth, abs_tol=atol_depth) and seg["depth"] >= transducer_depth and sample_depth >=transducer_depth:
+                    seg["usable"] = True # sets "usable" tag based on sample depth
+    return segments
+
+
+def interactive_segment_maker(eDNA_cast_depths, ctd_evl_file, transducer_depth, outfile_path=""):
+    '''
+    interactive_segment_maker: interactive script that walks user through creating .json of segments (also denotes which are usable)
+                               for a single cast - if minimum absolute tolerance variables are wrong, script allows you to adjust and 
+                               dynamically changes dictionary before saving
+    Inputs: eDNA_cast_depths (integer list) - list of depths eDNA data was collected at for cast
+            ctd_evl_file (string) - filename and path to CTD trace .evl file
+            transducer_depth (float) - depth of transducer in meters
+            outfile_path (string) - optional filename and path to save resultant .json file to
+    Outputs: segment dictionary - dictionary for a single cast - outermost key is segment number (i.e. 0, 1, 2) while inner keys are:
+                                    Format: 'bottle': True/False, "depth": float/math.nan, "usable": False, "points" : [all points]
+            If outfile_path is provided, the .json file is saved to the outfile path with the name of the ctd_evl_file with "_segments"
+            appended to the end of the name and the .json file extension
+    Note: This is RECOMMENDED for making .json files - it is much easier than doing all of them with create_segments_dic
+    Warning: This depends on a formula created to estimate good values for minimum absolute tolerance (atol_zero):
+                atol_zero = max(y)*3.16E-7 + 9.6E-5
+             This might need to be updated for new datasets - manually find good values for atol_zero using create_segments_dic by trying 
+             values for a few casts -  make a graph of atol_zero vs maximum depth of cast and use the fit line
+    '''
+
+    def check_segments_dic(segments, x, y):
+        '''
+        check_segments_dic: interactive check of create_segments_dic function - allows user to confirm that the correct number of segments 
+                            were found and try a new minimum absolute tolerance if not
+        Input: segments (segment dictionary) - segment dictionary after running create_segments_dic()
+               x (numpy datetime64 list) - datetime objects from original CTD trace
+               y (float list) - depth values from original CTD trace
+        Output: allows dynamic adjustment of minimum absolute tolerance - once user is satisfied updated segment dictionary is returned
+        '''
+        # check on number of segments
+        print("Number of segments found with this parameter: ")
+        print(len(segments))
+        print("The CTD track should be seperated into ascents/descents (red) and plateaus (blue). The plateaus are where data was taken. \n\
+Do the number of segments above match the total number of ascents/descents/plateaus and are they tagged with the right color? [y/n]")
+        plotting.plot_segments(segments)
+        correct_graph = input() # check if all segments are found
+        plt.close()
+        if correct_graph.lower() != "y": # all segments were not found
+            print("Please enter a new value for the absolute tolerance. Go up by 0.00001 if too many segments. Go down by same amount if too few.")
+            new_atol_zero = float(input())
+            segments = create_segments_dic(x, y, new_atol_zero) # try to find segments again
+            segments = check_segments_dic(segments, x, y) # check new segments
+        return segments
+
+    def check_usable_segments(segments, casts):
+        '''
+        check_usable_segments: interactive check of mark_usable_depth function - allows user to confirm that the depth of eDNA samples
+                               were found and try a new minimum absolute tolerance for depth if not
+        Inputs: segments (segment dictionary) - segment dictionary after running mark_usable_depth()
+                casts (integer list) - list of depths at which eDNA samples were taken
+        Output: allows dynamic adjustment of minimum absolute tolerance to find eDNA samples segments
+                - once user is satisfied updated segment dictionary is returned
+        '''
+        # check if all eDNA samples are identified
+        print("Expected, usable (below transducer depth) eDNA sample depths: ")
+        print([c for c in casts if c > 5]) # this 5 is transducer depth - make not a magic number
+        found_samples = []
+        for num in segments:
+            seg = segments[num]
+            if seg["usable"]:
+                found_samples.append(round(seg["depth"], 2))
+        print("Found, usable eDNA sample depths in segments: ")
+        print((sort(found_samples)))
+
+        print("The usable eDNA samples found should be displayed above and identifed with dotted lines on the graph. Are all expected eDNA sample depths found? [y/n]")
+        plotting.plot_segments(segments)
+        correct_graph = input() # check if all samples are identified
+        plt.close()
+        if correct_graph.lower() != "y": # if all samples are not identified
+            print("Please enter a new value for absolute tolerance to find eDNA sample depths. Go up by 0.5 to 1m if too few samples. Go down by same amount if too many.")
+            new_atol_depth = float(input())
+            for num in segments:
+                segments[num]["usable"] = False # reset all "usable" segments to unusable before trying to find them again
+            segments = mark_usable_depth(segments, casts, transducer_depth, new_atol_depth) # try to find samples
+            segments = check_usable_segments(segments, casts) # check samples
+        return segments
+
+    # interactive_segment_maker starts here
+    plt.ion()
+    depth_data = line.read_evl(ctd_evl_file)
+    x=depth_data.ping_time
+    y=depth_data.data
+
+    print("***Analyzing " + os.path.basename(ctd_evl_file).replace(".evl", "") + "***")
+    print("SEGMENTATION")
+    atol_zero = max(y)*3.16E-7 + 9.6E-5 # might need to adjust for best results
+    print("Absolute Tolerance (maximum absolute distance a slope can be from 0 to be classified as a plateau): ")
+    print(round(atol_zero, 5))
+
+    segments = create_segments_dic(x, y, atol_zero) # find segments
+    segments = check_segments_dic(segments, x, y) # check segments
+
+    print("\nSAMPLE DEPTHS")
+    atol_depth = 2
+    print("Absolute tolerance of eDNA sample depths (maximim distance plateau's mean depth differ \
+from recorded sample depth to be classified as sample site): ")
+    print(atol_depth)
+    
+    segments = mark_usable_depth(segments, eDNA_cast_depths, transducer_depth, atol_depth) # find eDNA samples
+    segments = check_usable_segments(segments, eDNA_cast_depths) # check samples
+    
+    if len(outfile_path) != 0: # if we have an outfile, save outfile
+        print("Saving .json file with segment classification.\n")
+        with open(outfile_path, 'w') as outfile: # might be better to only save the  "usable" segments and then note the min/max depth and min/max time
+            json.dump(segments, outfile)
+
+    return segments
+
+
+
+
+
