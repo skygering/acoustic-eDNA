@@ -26,27 +26,28 @@ evl_raw_dic = process.match_raw_evl(evl_list, raw_list, evl_inpath="/Volumes/Ger
 
 #png_list = process.cast_new_extension(evl_list, ".evl", ".png")
 
-#fig, ax = plt.subplots()
-#plotting.plot_evl(ax, evl_list[21], evl_path=ctd_path)
-#plt.close()
+fig, ax = plt.subplots()
+plotting.plot_evl(ax, evl_list[21], evl_path=ctd_path)
+plt.show()
+plt.close()
 
 #evl_raw_dic=process.evl_raw_dic_from_file(evl_raw_list)
 
-#ek80 = EK80.EK80()
-#raw_infiles = []
-#for raw in evl_raw_dic[evl_list[21]]:
-#    raw_infiles.append(raw_path + raw)
-#ek80.read_raw(raw_infiles)
-#fig, axs = plt.subplots(2,2, figsize=(12,10))
-#fig.suptitle("Sv data with CTD depth in time order for " + evl_list[21])
+ek80 = EK80.EK80()
+raw_infiles = []
+for raw in evl_raw_dic[evl_list[21]]:
+    raw_infiles.append(raw_path + raw)
+ek80.read_raw(raw_infiles)
+fig, axs = plt.subplots(2,2, figsize=(12,10))
+fig.suptitle("Sv data with CTD depth in time order for " + evl_list[21])
 
-#fq_ax = [(18000, axs[0,0]), (38000, axs[0,1]), (120000, axs[1,0]), (200000, axs[1,1])]
-#for fq in fq_ax:
-#    echo_plot = plotting.plot_echo(ek80, fq[1], fq[0], transducer_offset= 5)
-#    plotting.plot_evl_trace(echo_plot, fq[1], evl_list[21], ctd_path)
+fq_ax = [(18000, axs[0,0]), (38000, axs[0,1]), (120000, axs[1,0]), (200000, axs[1,1])]
+for fq in fq_ax:
+    echo_plot = plotting.plot_echo(fq[1], ek80, fq[0], transducer_offset= 5)
+    plotting.plot_evl_trace(fq[1], echo_plot, evl_list[21], ctd_path)
 
-#plt.show()
-#plt.close()
+plt.show()
+plt.close()
 
 
 
@@ -60,4 +61,3 @@ for i in range(1):
     print(ctd_path + evl_list[i])
     outfile = outfile_path + os.path.basename(json_list[i])
     json_dic = process.interactive_segment_maker(eDNA_cast_dic[i+1], ctd_path + evl_list[i], 5, outfile)
-print(json_dic)

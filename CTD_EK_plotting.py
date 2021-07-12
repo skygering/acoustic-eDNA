@@ -39,7 +39,7 @@ def plot_evl(ax, evl_infile, evl_path=""):
     ax.set_ylabel("Depth (m)")
     ax.invert_yaxis()
 
-def plot_echo(ek, ax, fq, fq_thresholds = [-90, -20], transducer_offset = 0.0):
+def plot_echo(ax, ek, fq, fq_thresholds = [-90, -20], transducer_offset = 0.0):
     '''
     plot_echo: plots an echogram with a given EK80 object from pyEcholab, option of adding a CTD trace overlay, zooming
                in on the trace, and saving/showing the file
@@ -67,7 +67,7 @@ def plot_echo(ek, ax, fq, fq_thresholds = [-90, -20], transducer_offset = 0.0):
     echo_plot = echogram.Echogram(ax, Sv, threshold=[fq_thresholds[0],fq_thresholds[1]])
     return echo_plot
 
-def plot_evl_trace(echo_plot, ax, trace_infn, trace_path = "", zoom = True):
+def plot_evl_trace(ax, echo_plot, trace_infn, trace_path = "", zoom = True):
     '''
     plot_evl_trace: add a evl depth trace to an echogram plot
     Inputs:

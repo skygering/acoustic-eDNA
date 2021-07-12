@@ -53,7 +53,7 @@ df <- data.frame(cast = double(), fq = character(),
                  sdev = double(), rank =double())
 
 edna_data <- read_excel("/Volumes/GeringSSD/Copy_DNA_extracts_Qubit.xlsx", sheet = "R.Station.vs.DNA")
-json_data <- jsonlite::fromJSON("/Volumes/GeringSSD/GU201905_CTD_JSON/segment_subset_1m.json")
+json_data <- jsonlite::fromJSON("/Volumes/GeringSSD/GU201905_CTD_JSON/segment_subset_ctd14_15.json")
 
 edna_data %>% 
   select(Cast, Lat, Long, Filtration.Volume, Sampling.Depth.Meter, Sampling.Depth.Type, X.12S.final) %>%
@@ -77,24 +77,22 @@ cast1 <- df[df$cast ==1,]
 # this looks awful ...
 f<- ggplot(cast1, aes(x = rank, y = avg, ymin = avg - sdev, ymax = avg + sdev)) + geom_errorbar(width = 0.2) + geom_point(size = 1.5)
 
-# by-hand cast14
-do.call(rbind, json_data[[14]])  %>% ctd_mean_sd(14) -> cast14
-avg_38k <- cast14[cast14$depth == 31 & cast14$fq == "38000", ]$avg
-depth31 <- cast14[cast14$depth == 31, ] %>% mutate(fq_r = avg/avg_38k)
-avg_38k <- cast14[cast14$depth == 56 & cast14$fq == "38000", ]$avg
-depth56 <- cast14[cast14$depth == 56, ] %>% mutate(fq_r = avg/avg_38k)
-cast14 <- rbind(depth31, depth56)
-ggplot(cast14, aes(x = strtoi(fq), y = fq_r, color = depth)) + geom_line() + ggtitle("Cast 14")
 
-do.call(rbind, json_data[[15]])  %>% ctd_mean_sd(15) -> cast15
-avg_38k <- cast15[cast15$depth == 42 & cast15$fq == "38000", ]$avg
-depth42 <- cast15[cast15$depth == 42, ] %>% mutate(fq_r = avg/avg_38k)
-avg_38k <- cast15[cast15$depth == 22 & cast15$fq == "38000", ]$avg
-depth22 <- cast15[cast15$depth == 22, ] %>% mutate(fq_r = avg/avg_38k)
-avg_38k <- cast15[cast15$depth == 9 & cast15$fq == "38000", ]$avg
-depth9 <- cast15[cast15$depth == 9, ] %>% mutate(fq_r = avg/avg_38k)
-cast15 <- rbind(depth42, depth22, depth9)
-ggplot(cast15, aes(x = strtoi(fq), y = fq_r, color = depth)) + geom_line() + ggtitle("Cast 15")
+fq_response_curve <- function(n_ctd){
+  cast_name <- paste0("Cast", strtoi(n_ctd))
+  do.call(rbind, json_data[[n_ctd]])  %>% ctd_mean_sd(n_ctd) -> cast
+  depths <- unique(cast$depth)
+  avg_38k <- lapply(depths, function(x) cast[cast$depth == x & cast$fq == "38000", ]$avg)
+  cast <- do.call(rbind, lapply(1:length(depths), function(i) cast[cast$depth == depths[[i]], ] %>%
+                                                              mutate(fq_r = avg/avg_38k[[i]])))
+  
+  ggsave(filename = paste0("/Volumes/GeringSSD/Cast_FRCs/", cast_name, ".jpg"), 
+         ggplot(cast, aes(x = strtoi(fq), y = fq_r, color = depth)) + geom_line() + ggtitle(cast_name),
+         width = 5, height = 4)
+}
+  
+for (i in 1:24) {print(i) 
+  fq_response_curve(i)}
 
 
 # Samples were data was taken with all 3 water bottle sizes
