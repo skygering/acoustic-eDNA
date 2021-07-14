@@ -4,8 +4,9 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from echolab2.plotting.matplotlib import echogram
 import numpy as np
+import CTD_EK_processing as process
 
-def plot_evl(ax, evl_infile, evl_path=""):
+def plot_evl(ax, evl_infile, evl_path="", title = ""):
     '''
     plot_evl: plots the CTD track of one .evl file (depth vs. time) - does NOT plot acoustic data
     Inputs: ax (matplotlib pyplot axes object) - axes object from a plt.subplots() call
@@ -13,33 +14,33 @@ def plot_evl(ax, evl_infile, evl_path=""):
                 then the evl_path variable is needed
             png_outfile (string) - optional name of .png file to save with .png extension - if not provided picture isn't saved
             png_path (string) - optional variable required if png_outfile does not have a path
+            title (string) - title to be displayed at the top of plot - default is evl_infile: CTD Profile
     Outputs:
-            if show is True: plot will be displayed
+            After running function plt.show(), plt.savefig(), or plt.close() can all be run
     '''
     evl_line = line.read_evl(os.path.normpath(evl_path + "/" + evl_infile))
     dt = evl_line.ping_time
     depth = evl_line.data
 
     ax.plot(dt, depth)
-
+    # title
+    if len(title) ==0:
+        title = os.path.basename(evl_infile) + ": CTD Profile"
+    ax.set_title(title)
+    ax.set_xlabel("Time (H:M)")
+    ax.set_ylabel("Depth (m)")
     # formating date on x-axis
-    plt.xticks(rotation=45)
+    ax.tick_params(axis='x', labelrotation=15)
     xfmt = mdates.DateFormatter('%H:%M')
     ax.xaxis.set_major_formatter(xfmt)
     # Change the number of x-axis ticks depending on how long the data timeframe is (less ticks for more time)
-    min_int = 1
+    min_int = 2
     if max(depth) > 350:
         min_int = 3
-    elif max(depth) > 200:
-        min_int = 2
     ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=min_int)) # to get a tick every min_int
-
-    ax.set_title('Depth over Time from ' + os.path.basename(evl_infile))
-    ax.set_xlabel("Time (H:M)")
-    ax.set_ylabel("Depth (m)")
     ax.invert_yaxis()
 
-def plot_echo(ax, ek, fq, fq_thresholds = [-90, -20], transducer_offset = 0.0):
+def plot_echo(ax, ek, fq, fq_thresholds = [-90, -20], transducer_offset = 0.0, title = ""):
     '''
     plot_echo: plots an echogram with a given EK80 object from pyEcholab, option of adding a CTD trace overlay, zooming
                in on the trace, and saving/showing the file
@@ -49,21 +50,16 @@ def plot_echo(ax, ek, fq, fq_thresholds = [-90, -20], transducer_offset = 0.0):
            fq_thresholds (two element integer list) - [lower dB threshold, upper dB threshold] defines the range of decible
                                                     that are not considered noise
            transducer_offset (double) - optional transducer offset in meters
-           show (boolean) - optional variable that determines if picture is shown, default is True
-    Outputs: Returns the matplotlib pyplot axes object post plotting
-             if show is True: plot will be displayed
-             if png_outfile is provided the .png file will be saved to provided path
+           title (string) - title to be displayed at the top of plot - default is frequency Hz
+    Outputs: Returns echogram object - plot_evl-trace takes in this object
+             After running function plt.show(), plt.savefig(), or plt.close() can all be run
     '''
-    ax.set_title(str(fq) + "Hz")
-    raw_data_list = ek.get_channel_data(frequencies=fq)
-    raw_data = raw_data_list[fq][0]
-    for file in raw_data_list[fq][1:]: 
-        # if there is more than one .raw file, this appends all data of specified frequency
-        raw_data.append(file)
-
-    cal_obj = raw_data.get_calibration()
-    cal_obj.transducer_offset_z = transducer_offset
-    Sv = raw_data.get_Sv(calibration=cal_obj, return_depth=True)
+    if len(title) == 0:
+        title = str(fq) + "Hz"
+    ax.set_title(title)
+    ax.tick_params(axis='x', labelrotation=15)
+   
+    Sv, _ = process.raw_to_Sv(ek, fq, transducer_offset)
     echo_plot = echogram.Echogram(ax, Sv, threshold=[fq_thresholds[0],fq_thresholds[1]])
     return echo_plot
 
@@ -78,6 +74,7 @@ def plot_evl_trace(ax, echo_plot, trace_infn, trace_path = "", zoom = True):
            zoom (boolean) - optional - if True will zoom in on echogram surrounding evl CTD trace
            show (boolean) - optional variable that determines if picture is shown, default is True
     Output: echo_plot - returns the updated echogram object
+            After running function plt.show(), plt.savefig(), or plt.close() can all be run
     '''
     trace_infn = os.path.normpath(trace_path + "/" + trace_infn)
     depth_line = line.read_evl(trace_infn)
@@ -90,12 +87,13 @@ def plot_evl_trace(ax, echo_plot, trace_infn, trace_path = "", zoom = True):
     return echo_plot
 
 
-def plot_segments(segments, title = "CTD Track: Depth vs Time"):
+def plot_segments(segments, title = "CTD Profile Segments", show = True):
     '''
     plot_segments: plotting function designed for verification of segment seperation success after running 
                    create_segments_dic() or mark_usable_depth() 
     Inputs: segments (nested dictionary) - segment dictionary created by create_segments_dic function
             title (string) - optional string title for graph
+            show (boolean) - if True, show segments - needed for interactive segment finder
     Outputs: shows a graph with ascents and decents marked in red, plateaus in blue, and usable segments
              with dotted blue for easy vertification
     Note: This is used in CTD_EK_processing.py for segment creation vertification
@@ -110,6 +108,7 @@ def plot_segments(segments, title = "CTD Track: Depth vs Time"):
         x_seg, y_seg = zip(*segments[num]["points"])
         x_seg = [np.datetime64(date) for date in x_seg]
         ax.plot(x_seg, y_seg, style)
+        ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=3))
 
     # plot aesthetics
     fig.autofmt_xdate()
@@ -119,7 +118,8 @@ def plot_segments(segments, title = "CTD Track: Depth vs Time"):
     ax.set_xlabel("Time (H:M)")
     ax.set_ylabel("Depth (m)")
     ax.invert_yaxis()
-    plt.show()
+    if show:
+        plt.show()
 
 
 

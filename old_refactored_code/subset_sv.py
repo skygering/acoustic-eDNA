@@ -11,6 +11,14 @@ import matplotlib.pyplot as plt
 import copy
 import CTD_EK_processing as process
 import CTD_EK_plotting as plotting
+import matplotlib.dates as mdates
+
+plt.rcParams['axes.labelsize'] = 22
+plt.rcParams['axes.titlesize'] = 25
+plt.rcParams['figure.titlesize'] = 28
+plt.rcParams['xtick.labelsize'] = 20
+plt.rcParams['ytick.labelsize'] = 20
+
 
 def raw_to_Sv(ek, fq, transducer_offset):
     raw_data_list = ek.get_channel_data(frequencies=fq)
@@ -84,7 +92,7 @@ for i in range(13, 15):#range(len(json_files)):
             y_min = y_mean - top_doffset
             y_max = y_mean + bot_doffset
             x_min = min(points_time) - np.timedelta64(pre_toffset, 'm') 
-            x_max = max(points_time) + np.timedelta64(post_toffset, 'm')
+            x_max = min(points_time) + np.timedelta64(post_toffset, 'm') # time is from start of plateau
 
             Sv18, cal18 = raw_to_Sv(ek80, 18000, transducer_offset)
 
@@ -97,8 +105,9 @@ for i in range(13, 15):#range(len(json_files)):
             x_min_idx = np.argmin(np.abs(times - x_min))
             x_max_idx = np.argmin(np.abs(times - x_max))
 
-            fig, axs = plt.subplots(2,2, figsize=(12,10))
-            fig.suptitle("File:" + json_files[i] + "; Depth: " + str(round(y_mean)))
+            fig, axs = plt.subplots(2,2, figsize=(18,18), constrained_layout = True)
+            
+            fig.suptitle("Subset for File: " + json_files[i].replace("_segments.json", "") + " at Depth: " + str(round(y_mean)))
             fq_ax = [(18000, axs[0,0]), (38000, axs[0,1]), (120000, axs[1,0]), (200000, axs[1,1])]   
 
             bad_fq = []
@@ -114,9 +123,10 @@ for i in range(13, 15):#range(len(json_files)):
                         Sv.match_samples(Sv18)
                     subset_Sv = crop_Sv(copy.deepcopy(Sv), (x_min_idx, x_max_idx), (y_min_idx, y_max_idx))
                     fq_dic[str(fq[0])] = subset_Sv.data.tolist()
-                    
                     fq[1].set_title(str(fq[0]) + "Hz")
-                    echogram.Echogram(fq[1], subset_Sv, threshold=[-90,-20])
+                    fq[1].tick_params(axis='x', labelrotation=15)
+                    echogram.Echogram(fq[1], subset_Sv, threshold=[-90,-20]) # in long term - make interactive version
+                    
             #plt.show()
             print(subset_path + ctd_name + "_" + str(round(y_mean)) + '_subset.png')
             plt.savefig(subset_path + ctd_name + "_" + str(round(y_mean)) + '_subset.png')
