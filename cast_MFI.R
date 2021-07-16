@@ -36,14 +36,14 @@ for (n_ctd in seq_along(json_data)){
     # list of data arrays for each frequency at this depth
     depth <- ctd[[n_depth]]
     # calculate MFI
-    MFI = calc_MFI(depth)
+    MFI = calc_MFI(depth, scale_max = 0)
     
     # plot MFI (uncomment jpeg and dev.off to save)
-    jpeg(paste0("/Volumes/GeringSSD/MFI/", ctd_name, "_", depth_name, "_MFI.jpg"), width = 900, height = 800)
+    #jpeg(paste0("/Volumes/GeringSSD/MFI/", ctd_name, "_", depth_name, "_MFI.jpg"), width = 900, height = 800)
     plot(t(MFI), breaks=c(-0.02, 0.4, 0.6, 0.8, 1.0), # some values are very slightly smaller that 0
          col=c_palette, 
          main= paste("CTD:", ctd_name, "Depth: ", depth_name, "- MFI"))
-    dev.off()
+    #dev.off()
     
     # histogram
     #jpeg(paste0("/Volumes/GeringSSD/MFI/", ctd_name, "_", depth_name, "_MFI_hist.jpg"), width = 900, height = 800)

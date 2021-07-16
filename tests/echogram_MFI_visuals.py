@@ -3,7 +3,7 @@ import CTD_EK_plotting as plotting
 import os
 import matplotlib.pyplot as plt
 from echolab2.instruments import EK80
-from echolab2.processing import line
+from echolab2.processing import line, processed_data
 from echolab2.plotting.matplotlib import echogram
 
 plt.rcParams['axes.labelsize'] = 22
@@ -74,6 +74,7 @@ plt.close()
 
 subset_Sv_dic= process.subset_segments_Sv(seg_dic, raw_infiles, [0, 5], [2, 2], 5)
 Sv_18 = subset_Sv_dic[56][18000]
+
 fig, ax = plt.subplots(figsize=(10, 8),  constrained_layout = True)
 echogram.Echogram(ax, Sv_18, threshold=echo_threshold)
 ax.set_title("Cast 14, Frequency 18kHz Subset")

@@ -132,7 +132,7 @@ for i in range(13, 15):#range(len(json_files)):
             plt.savefig(subset_path + ctd_name + "_" + str(round(y_mean)) + '_subset.png')
             plt.close()
 
-outfile_path = os.path.normpath(subset_path + "/segment_subset_CTD14-15_2.json")
+outfile_path = os.path.normpath(subset_path + "/segment_subset_CTD14-15.json")
 with open(outfile_path, 'w') as outfile: # might be better to only save the  "usable" segments and then note the min/max depth and min/max time
     json.dump(json_dic, outfile)
 

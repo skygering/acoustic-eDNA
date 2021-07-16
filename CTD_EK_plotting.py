@@ -5,6 +5,9 @@ import matplotlib.dates as mdates
 from echolab2.plotting.matplotlib import echogram
 import numpy as np
 import CTD_EK_processing as process
+import math
+import matplotlib.colors as mcolors
+import matplotlib.ticker as ticker
 
 def plot_evl(ax, evl_infile, evl_path="", title = ""):
     '''
@@ -67,7 +70,7 @@ def plot_evl_trace(ax, echo_plot, trace_infn, trace_path = "", zoom = True):
     '''
     plot_evl_trace: add a evl depth trace to an echogram plot
     Inputs:
-           echoplot - echogram object from pyEcholab
+           echo_plot - echogram object from pyEcholab
            ax (matplotlib.pyplot axes object) - axes object created from matplotlib.pyplot.subplots() call
            trace_infn (string path and filename) -  file name of evl CTD trace to overlay on echogram - this is optional
            trace_path (string) - optional variable required if trace_infn does not have a path
@@ -118,8 +121,62 @@ def plot_segments(segments, title = "CTD Profile Segments", show = True):
     ax.set_xlabel("Time (H:M)")
     ax.set_ylabel("Depth (m)")
     ax.invert_yaxis()
+    ax.tick_params(axis='x', labelrotation=15)
     if show:
         plt.show()
 
+def plot_MFI(ax, mfi):
+    '''
+    plot_MFI: plot MFI processed data object created from calc_MFI()
+    Inputs: ax (matplotlib.pyplot axes object) - axes object created from matplotlib.pyplot.subplots() call
+            mfi (MFI processed data object) - see calc_MFI() and Rick Towler's processed_data.py
+    Outputs: image object created from imshow()
+    Note: based off of Rick Towler's echogram.Echogram()
+    '''
+    def format_datetime(x, pos=None):
+        '''
+        format_datetime: attempts to convert floats into datetime64 objectss
+        '''
+        try:
+            dt = x.astype('datetime64[ms]').astype('object')
+            tick_label = dt.strftime("%H:%M:%S")
+        except:
+            tick_label = ''
+        return tick_label
 
+    # splits colors into 4 MFI catagories and value ranges
+    colors = ["#006164", "#57c4ad", "#eda247", "#db4325"]
+    bounds = [0, 0.4, 0.6, 0.8, 1]
+    cmap = mcolors.ListedColormap(colors)
+    norm = mcolors.BoundaryNorm(bounds, 4)
+    cmap.set_bad(color="gray")
 
+    # rotates MFI data to be plotted depth vs time
+    mfi_data = np.flipud(np.rot90(mfi.data, 1))
+
+    #axis ticks
+    yticks = mfi.depth
+    xticks = mfi.ping_time.astype('float')
+
+    print("about to plot")
+    mfi_image = ax.imshow(mfi_data, cmap=cmap, norm = norm, aspect='auto', interpolation='none', 
+                extent=[xticks[0], xticks[-1], yticks[-1], yticks[0]], origin='upper')
+
+    # axis aesthetics
+    ax.xaxis.set_major_formatter(ticker.FuncFormatter(
+            format_datetime))
+    ax.tick_params(axis='x', labelrotation=15)
+
+    y_label = 'Depth (m)'
+    try:
+        x = ax.get_xticks()[0]
+        dt = x.astype('datetime64[ms]').astype('object')
+
+        x_label = dt.strftime("%m-%d-%Y")
+    except:
+        x_label = ''
+
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
+    ax.grid(True, color='k')
+    return mfi_image

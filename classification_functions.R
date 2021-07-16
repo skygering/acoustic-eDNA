@@ -29,15 +29,18 @@ calc_MFI <- function(ctd_depth, delta = 40, scale_max = 1){
   for (i in 1:length(f_idx[,1])) {
     d_f[i,3] = 1-exp(-abs(f[f_idx[i,1]]-f[f_idx[i,2]])/delta)
   }
+  
   #scaled linear data
   D_f = sv_f
   
   if (scale_max == 0) { # scale to local (per frequency) maximum
     for (fq in 1:nf) {
+      print(max(sv_f[,,fq], na.rm=TRUE))
       D_f[,,fq] = sv_f[,,fq]/max(sv_f[,,fq], na.rm=TRUE)
     }
   }
   if (scale_max == 1) { # scale to global maximum
+    print(max(sv_f, na.rm=TRUE))
     D_f = sv_f/max(sv_f, na.rm=TRUE)
   }
   
