@@ -21,6 +21,7 @@ def plot_evl(ax, evl_infile, evl_path="", title = ""):
     Outputs:
             After running function plt.show(), plt.savefig(), or plt.close() can all be run
     '''
+    print("Plotting: " + evl_infile)
     evl_line = line.read_evl(os.path.normpath(evl_path + "/" + evl_infile))
     dt = evl_line.ping_time
     depth = evl_line.data
@@ -57,6 +58,7 @@ def plot_echo(ax, ek, fq, fq_thresholds = [-90, -20], transducer_offset = 0.0, t
     Outputs: Returns echogram object - plot_evl-trace takes in this object
              After running function plt.show(), plt.savefig(), or plt.close() can all be run
     '''
+    print("Plotting: echogram " + str(fq) + "Hz")
     if len(title) == 0:
         title = str(fq) + "Hz"
     ax.set_title(title)
@@ -79,11 +81,12 @@ def plot_evl_trace(ax, echo_plot, trace_infn, trace_path = "", zoom = True):
     Output: echo_plot - returns the updated echogram object
             After running function plt.show(), plt.savefig(), or plt.close() can all be run
     '''
+    print("Adding CTD profile: " + trace_infn)
     trace_infn = os.path.normpath(trace_path + "/" + trace_infn)
     depth_line = line.read_evl(trace_infn)
     echo_plot.plot_line(depth_line, linewidth=2.5, color = "black")
     if zoom:
-        echo_bottom = max(depth_line.data) * 1.25
+        echo_bottom = max(depth_line.data) * 1.35
         x_lims = (min(depth_line.ping_time).astype('float'), max(depth_line.ping_time).astype('float'))
         ax.set_ylim(echo_bottom, 0)
         ax.set_xlim(x_lims[0], x_lims[1])
@@ -125,11 +128,13 @@ def plot_segments(segments, title = "CTD Profile Segments", show = True):
     if show:
         plt.show()
 
-def plot_MFI(ax, mfi):
+def plot_MFI(ax, mfi, title = "", label_size = 14):
     '''
     plot_MFI: plot MFI processed data object created from calc_MFI()
     Inputs: ax (matplotlib.pyplot axes object) - axes object created from matplotlib.pyplot.subplots() call
             mfi (MFI processed data object) - see calc_MFI() and Rick Towler's processed_data.py
+            title (string) - title of the plot
+            label_size (integer) - size of label for color bar
     Outputs: image object created from imshow()
     Note: based off of Rick Towler's echogram.Echogram()
     '''
@@ -154,19 +159,16 @@ def plot_MFI(ax, mfi):
     # rotates MFI data to be plotted depth vs time
     mfi_data = np.flipud(np.rot90(mfi.data, 1))
 
-    #axis ticks
+    # axis ticks
     yticks = mfi.depth
     xticks = mfi.ping_time.astype('float')
-
-    print("about to plot")
+    # plot
     mfi_image = ax.imshow(mfi_data, cmap=cmap, norm = norm, aspect='auto', interpolation='none', 
                 extent=[xticks[0], xticks[-1], yticks[-1], yticks[0]], origin='upper')
 
     # axis aesthetics
-    ax.xaxis.set_major_formatter(ticker.FuncFormatter(
-            format_datetime))
+    ax.xaxis.set_major_formatter(ticker.FuncFormatter(format_datetime))
     ax.tick_params(axis='x', labelrotation=15)
-
     y_label = 'Depth (m)'
     try:
         x = ax.get_xticks()[0]
@@ -175,8 +177,18 @@ def plot_MFI(ax, mfi):
         x_label = dt.strftime("%m-%d-%Y")
     except:
         x_label = ''
-
     ax.set_xlabel(x_label)
     ax.set_ylabel(y_label)
     ax.grid(True, color='k')
+    #title
+    if len(title) == 0:
+        title = "MFI Predictions"
+    ax.set_title(title)
+    # color bar aesthetics
+    cbar = plt.colorbar(mfi_image)
+    cbar.set_ticks(list())
+    for index, label in enumerate(["Swimbladder Fish", "Small Resonant Bubbles", "Zooplankton", "Non-Swimbladder Fish"]):
+        x = 1.5
+        y = (2*index+1)/8
+        cbar.ax.text(x,y,label, size = label_size)
     return mfi_image

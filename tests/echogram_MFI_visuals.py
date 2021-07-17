@@ -6,11 +6,11 @@ from echolab2.instruments import EK80
 from echolab2.processing import line, processed_data
 from echolab2.plotting.matplotlib import echogram
 
-plt.rcParams['axes.labelsize'] = 22
-plt.rcParams['axes.titlesize'] = 25
-plt.rcParams['figure.titlesize'] = 28
-plt.rcParams['xtick.labelsize'] = 18
-plt.rcParams['ytick.labelsize'] = 18
+plt.rcParams['axes.labelsize'] = 18
+plt.rcParams['axes.titlesize'] = 20
+plt.rcParams['figure.titlesize'] = 21
+plt.rcParams['xtick.labelsize'] = 14
+plt.rcParams['ytick.labelsize'] = 14
 
 outfile_path = "/Volumes/GeringSSD/Presentation_Images/"
 
@@ -84,6 +84,7 @@ plt.close()
 Sv_38 = subset_Sv_dic[56][38000]
 fig, ax = plt.subplots(figsize=(10, 8),  constrained_layout = True)
 echogram.Echogram(ax, Sv_38, threshold=echo_threshold)
+ax.set_title("Cast 14, Frequency 38kHz Subset")
 plt.savefig(outfile_path + "cast14_38000_subset.png")
 plt.close() 
 
