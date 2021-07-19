@@ -14,7 +14,8 @@ import json
 import CTD_EK_plotting as plotting
 import glob
 from itertools import combinations
-#import copy
+import warnings
+
 
 def asc_to_evl(ctd_list_fn, infile_path, outfile_path, echoview_version = "EVBD 3 9.0.298.34146"):
     '''
@@ -359,6 +360,16 @@ def interactive_segment_maker(eDNA_cast_depths, ctd_evl_file, transducer_depth, 
              This might need to be updated for new datasets - manually find good values for atol_zero using create_segments_dic by trying 
              values for a few casts -  make a graph of atol_zero vs maximum depth of cast and use the fit line
     '''
+    def get_atol(atol):
+        try: 
+            atol = atol.split()
+            if len(atol) != 1:
+                raise
+            new_atol =  float(atol[0])
+        except:
+            new_atol = input("Did not enter a valid offset. Please try again:")
+            new_atol =  get_atol(new_atol)
+        return new_atol
 
     def check_segments_dic(segments, x, y):
         '''
@@ -372,14 +383,12 @@ def interactive_segment_maker(eDNA_cast_depths, ctd_evl_file, transducer_depth, 
         # check on number of segments
         print("Number of segments found with this parameter: ")
         print(len(segments))
-        print("The CTD track should be seperated into ascents/descents (red) and plateaus (blue). The plateaus are where data was taken. \n\
-Do the number of segments above match the total number of ascents/descents/plateaus and are they tagged with the right color? [y/n]")
         plotting.plot_segments(segments)
-        correct_graph = input() # check if all segments are found
+        correct_graph = input("The CTD track should be seperated into ascents/descents (red) and plateaus (blue). The plateaus are where data was taken. \n\
+Do the number of segments above match the total number of ascents/descents/plateaus and are they tagged with the right color? [y/n]") # check if all segments are found
         plt.close()
         if correct_graph.lower() != "y": # all segments were not found
-            print("Please enter a new value for the absolute tolerance. Go up by 0.00001 if too many segments. Go down by same amount if too few.")
-            new_atol_zero = float(input())
+            new_atol_zero = get_atol(input("Please enter a new value for the absolute tolerance. Go up by 0.00001 if too many segments. Go down by same amount if too few."))
             segments = create_segments_dic(x, y, new_atol_zero) # try to find segments again
             segments = check_segments_dic(segments, x, y) # check new segments
         return segments
@@ -404,13 +413,11 @@ Do the number of segments above match the total number of ascents/descents/plate
         print("Found, usable eDNA sample depths in segments: ")
         print((sort(found_samples)))
 
-        print("The usable eDNA samples found should be displayed above and identifed with dotted lines on the graph. Are all expected eDNA sample depths found? [y/n]")
         plotting.plot_segments(segments)
-        correct_graph = input() # check if all samples are identified
+        correct_graph = input("The usable eDNA samples found should be displayed above and identifed with dotted lines on the graph. Are all expected eDNA sample depths found? [y/n]") # check if all samples are identified
         plt.close()
         if correct_graph.lower() != "y": # if all samples are not identified
-            print("Please enter a new value for absolute tolerance to find eDNA sample depths. Go up by 0.5 to 1m if too few samples. Go down by same amount if too many.")
-            new_atol_depth = float(input())
+            new_atol_depth = get_atol(input("Please enter a new value for absolute tolerance to find eDNA sample depths. Go up by 0.5 to 1m if too few samples. Go down by same amount if too many."))
             for num in segments:
                 segments[num]["usable"] = False # reset all "usable" segments to unusable before trying to find them again
             segments = mark_usable_depth(segments, casts, transducer_depth, new_atol_depth) # try to find samples
@@ -502,7 +509,7 @@ def subset_segments_Sv(segment_dic, raw_files, toffsets, doffsets, transducer_of
                                      first item is meters above mean, second is meters below mean
             transducer_offset (double) - offset of transducer from water surface in meters
             frequencies (integer list) - list of frequnecies within raw data
-    Outputs: nested dictionary for each usable segment with points within defined subset for each frequency
+    Outputs: (1) nested dictionary for each usable segment with points within defined subset for each frequency
              Format: 
                         {depth 1: {frequency 1: cropped Sv data object for frequency 1 at depth 1
                                    frequency 2: cropped Sv data object for frequency 2 at depth 1
@@ -558,14 +565,21 @@ def subset_to_json(subset_dic):
     '''
     subset_to_json: takes  a subset dictionary created by subset_segments_Sv and turns it into a format that can be dumped to a .json file
     Inputs: subset_dic (subset dictionary of Sv objects)
-    Outputs: Dictionary with same structure as subset_dic but instead of the innermost values being Sv data objects from pyEcholab,
+    Outputs: (1) Dictionary with same structure as subset_dic but instead of the innermost values being Sv data objects from pyEcholab,
              they're nested lists of doubles - this is just the Sv data and does not have the ping_time or depth data like the Sv object
+             (2) Nested dictionary with depths for outermost keys and "depths" and "ping time" for inner keys with the depth and ping time
+                 values for each list stored as 1D arrays 
     '''
+    bounds_dic = {}
     for depth in subset_dic:
         depth_subset = subset_dic[depth]
-        for fq in depth_subset:
+        frequencies = list(depth_subset.keys())
+        pings_arr = [np.datetime_as_string(x) for x in depth_subset[frequencies[0]].ping_time]
+        depth_arr = depth_subset[frequencies[0]].depth.tolist()
+        bounds_dic[depth] = {"depth": depth_arr, "ping_time": pings_arr}
+        for fq in frequencies:
             depth_subset[fq] = depth_subset[fq].data.tolist() # lists can be "dumped" to .json files
-    return subset_dic
+    return subset_dic, bounds_dic
 
 
 def interactive_subset_maker(segment_dic, raw_files, transducer_offset, toffsets, doffsets,
@@ -600,25 +614,24 @@ def interactive_subset_maker(segment_dic, raw_files, transducer_offset, toffsets
             '''
             get_offset: allows user to try multiple times to give new offsets and is used for error handling with bad entries
             '''
-            print(message)
             offsets = []
             try:
-                offsets = input().split(",")
+                offsets = input(message).split(",")
+                if len(offsets) !=2:
+                    raise
                 if type == "int":
                     offsets = [int(x) for x in offsets]
                 else: offsets = [float(x) for x in offsets]
             except: 
-                print("Time offsets must be integers, depth can be decimals. Please try again")
+                print("You input was wrong. Wrong number or type of inputs. Time offsets must be integers, depth can be decimals. Please try again")
                 offsets = get_offset(message, type)
             return offsets
 
 
         fig, ax = plt.subplots(constrained_layout = True)
-        ax.set_title
-        ax.set_title("Example Subset at " + str(depth_val))
-        print("Are the bounds of the subset postioned well (i.e does not go into the surface, the bottom)? [y/n]")
+        ax.set_title("Example Subset at " + str(depth_val) + "m")
         echogram.Echogram(ax, subset[frequencies[0]], threshold = thresholds)
-        correct_bounds = input()
+        correct_bounds = input("Are the bounds of the subset postioned well (i.e does not go into the surface, the bottom)? [y/n]")
         plt.close()
         if correct_bounds.lower() != "y":
             new_toffsets = get_offset("Time offsets in minutes (minutes before and after start of data capture; seperate with a comma):", "int")
@@ -630,7 +643,7 @@ def interactive_subset_maker(segment_dic, raw_files, transducer_offset, toffsets
                 if seg["usable"] and round(seg["depth"]) == int(depth_val):
                     segment = seg
                     n_segment = seg_num
-            subset = subset_segments_Sv({n_segment: segment}, raw_files, new_toffsets, new_doffsets, transducer_offset)
+            subset= subset_segments_Sv({n_segment: segment}, raw_files, new_toffsets, new_doffsets, transducer_offset)
             subset = check_subset_bounds(subset[depth_val], depth_val)
         return subset
     
@@ -646,14 +659,12 @@ def interactive_subset_maker(segment_dic, raw_files, transducer_offset, toffsets
             '''
             remove_fq: allows users to remove frequencies from dictionary
             '''
-            print("List freqencies you want to remove seperated by commas")
-            rm_fq = input().split(",")
+            rm_fq = input("List freqencies you want to remove seperated by commas").split(",")
             for fq in rm_fq:
                 try:
                     subset.pop(int(fq)) # remove specified key
                 except: # user did not specify a key within the dictionary
-                    print(str(fq) + " is not a frequency. It could not be removed. Do you want to try another frequency? [y/n]")
-                    again = input()
+                    again = input(str(fq) + " is not a frequency. It could not be removed. Do you want to try another frequency? [y/n]")
                     if again.lower() == "y":
                         remove_fq(subset) # user can try again
             return subset
@@ -661,11 +672,10 @@ def interactive_subset_maker(segment_dic, raw_files, transducer_offset, toffsets
         n_fq = len(frequencies)
         fig, ax = plt.subplots(n_fq, figsize=(10,8), constrained_layout = True)
         fig.suptitle("Subset at " + str(depth_val))
-        print("Do you want all frequencies shown included in the output dictionary? [y/n]")
         for f in range(n_fq): # loop through freqencies
             echogram.Echogram(ax[f], subset[frequencies[f]], threshold = thresholds) # plot to see all freqencies
-            ax[f].set_title(str(frequencies[f]) + "kHz")
-        all_fq = input()
+            ax[f].set_title(str(frequencies[f]) + "Hz")
+        all_fq = input("Do you want all frequencies shown included in the output dictionary? [y/n]")
         if all_fq.lower() != "y":
             subset = remove_fq(subset) # remove frequencies specified by user
         plt.close()
@@ -691,7 +701,7 @@ def interactive_subset_maker(segment_dic, raw_files, transducer_offset, toffsets
     return subset_dic
 
 
-def calc_MFI(Sv_data_dic, delta = 40, local_norm = True):
+def calc_MFI(Sv_data_dic, delta = 40, bad_fq = []):
     '''
     calc_MFI: creates processed data object with MFI classification from a dictionary of Sv data with frequencies as keys
     Inputs: Sv_data_dic (Sv data object dictionary) - dictionary with freqencies as keys - can be created with subset_segments_Sv()
@@ -699,14 +709,22 @@ def calc_MFI(Sv_data_dic, delta = 40, local_norm = True):
                               multi-frequency indicator to inform on large scale spatial patterns of aquatic pelagic ecosystems."
             local_norm (boolean) - calculating MFI requires normalizing the Sv data by maximum value - if True each frequency is maximized
                                    by individual maximum rather than global (between all frequencies) maximum
+            bad_fq (integer list) - list of freqencies to NOT use in MFI calculation (i.e. 200000)
     Output: MFI processed data object where the data attribute is the MFI calculation, while the ping_time, n_pings, and depth are the same
             as in input Sv objects
     '''
     f=list(Sv_data_dic.keys()) # freqencies of Sv data availible
+    for b in bad_fq:
+        try: f.remove(b)
+        except: print(str(b) + " was not in frequency list and can't be removed")
+
     f = [int(i/1000) for i in f]
     f.sort()
     f_inv = {i: 1/i for i in f} # inverse freqency calues
     nf = len(f)
+
+    if nf < 3:
+        warnings.warn("Two or less frequencies provided - cannot calcualte MFI!")
 
     f_comb = list(combinations(f, 2)) # combinations of frequencies
     dist_dic = {}
@@ -720,14 +738,12 @@ def calc_MFI(Sv_data_dic, delta = 40, local_norm = True):
             sv_data_dic[i].data = 10**(sv_data_dic[i].data/10)
    
     max_vals = [np.amax(sv.data) for sv in sv_data_dic.values()] # maximum sv value per each freqencys' sv data
-    print(max_vals)
+    min_vals = [np.amin(sv.data) for sv in sv_data_dic.values()] # minimum sv value per each freqencys' sv data
     Norms={i: None for i in f} # normalized sv data for each frequency 
     for i in range(len(f)):
         norm_sv = sv_data_dic[f[i]].copy()
-        if local_norm:
-            norm_sv.data = (sv_data_dic[f[i]].data/max_vals[i]).astype(float)
-        else:
-            norm_sv.data = (sv_data_dic[f[i]].data/max(max_vals)).astype(float)
+        # (sV(fi)-min(sV(f)))/(max(sV(f)) -min(sV(f) normalization equation as confirmed by Berger and Trenkel
+        norm_sv.data = ((sv_data_dic[f[i]].data - min_vals[i])/(max_vals[i] - min_vals[i])).astype(float)
         Norms[f[i]] = norm_sv
 
     # MFI calculatin
@@ -750,7 +766,4 @@ def calc_MFI(Sv_data_dic, delta = 40, local_norm = True):
     MFI_obj.ping_time = sv_data.ping_time
     MFI_obj.depth = sv_data.depth
     return MFI_obj
-
-
-
 

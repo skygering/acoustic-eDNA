@@ -41,7 +41,7 @@ raw_infiles = [os.path.normpath(raw_path + "/"+ raw) for raw in evl_raw_dic[evl_
 ek80.read_raw(raw_infiles)
 
 # 18kHz
-echo = plotting.plot_echo(ax, ek80, 18000, title = "Cast 14: 18000 kHz", 
+echo = plotting.plot_echo(ax, ek80, 18000, title = "Cast 14: 18 kHz", 
                           fq_thresholds = echo_threshold, transducer_offset= 5)
 ax.set_ylim(70, 0)
 plt.savefig(outfile_path + "cast14_18000.png")
@@ -51,7 +51,7 @@ plt.savefig(outfile_path + "cast14_18000_evl.png")
 plt.close()
 # 38 kHz
 fig, ax = plt.subplots(figsize=(10, 8),  constrained_layout = True)
-echo = plotting.plot_echo(ax, ek80, 38000, title = "Cast 14: 38000 kHz", fq_thresholds = echo_threshold, transducer_offset= 5)
+echo = plotting.plot_echo(ax, ek80, 38000, title = "Cast 14: 38 kHz", fq_thresholds = echo_threshold, transducer_offset= 5)
 ax.set_ylim(70, 0)
 plt.savefig(outfile_path + "cast14_38000.png")
 

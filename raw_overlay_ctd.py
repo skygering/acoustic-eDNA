@@ -66,31 +66,3 @@ for evl in evl_raw_dic:
     plt.close()
 
 
-
-
-#depth_data = line.read_evl(ctd_path + evl_list[cast-1])
-#x=depth_data.ping_time
-#y=depth_data.data
-#seg_dic = process.create_segments_dic(x, y, 0.00011)
-#seg_dic = process.mark_usable_depth(seg_dic, eDNA_cast_dic[cast],5)
-#plotting.plot_segments(seg_dic, "Cast 14: Segment Seperation")
-#plt.show()
-#plt.close()
-
-#subset_Sv_dic= process.subset_segments_Sv(seg_dic, raw_infiles, [0, 5], [2, 2], 5)
-
-#subset_Sv_56 = subset_Sv_dic[56] # pull out a specific depth
-
-#mfi = process.calc_MFI(subset_Sv_56, local_norm=True)
-
-#fig, ax = plt.subplots(figsize=(15,8))
-#mfi_image = plotting.plot_MFI(ax, mfi, "Cast 14, Depth 56: MFI Predictions")
-#plt.show()
-#plt.close()
-
-
-#for i in range(13, 14):
-#    print(ctd_path + evl_list[i])
-#    outfile = outfile_path + os.path.basename(json_list[i])
-#    json_dic = process.interactive_segment_maker(eDNA_cast_dic[i+1], ctd_path + evl_list[i], 5)
-#    print(json_dic)
