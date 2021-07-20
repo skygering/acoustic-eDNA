@@ -68,7 +68,7 @@ def plot_echo(ax, ek, fq, fq_thresholds = [-90, -20], transducer_offset = 0.0, t
     echo_plot = echogram.Echogram(ax, Sv, threshold=[fq_thresholds[0],fq_thresholds[1]])
     return echo_plot
 
-def plot_evl_trace(ax, echo_plot, trace_infn, trace_path = "", zoom = True):
+def plot_evl_trace(ax, echo_plot, trace_infn, trace_path = "", zoom = True, time_offset = [2, 0]):
     '''
     plot_evl_trace: add a evl depth trace to an echogram plot
     Inputs:
@@ -87,7 +87,8 @@ def plot_evl_trace(ax, echo_plot, trace_infn, trace_path = "", zoom = True):
     echo_plot.plot_line(depth_line, linewidth=2.5, color = "black")
     if zoom:
         echo_bottom = max(depth_line.data) * 1.35
-        x_lims = (min(depth_line.ping_time).astype('float'), max(depth_line.ping_time).astype('float'))
+        x_lims = ((min(depth_line.ping_time) - np.timedelta64(time_offset[0], 'm')).astype('float'), 
+                 (max(depth_line.ping_time) + np.timedelta64(time_offset[1], 'm')).astype('float'))
         ax.set_ylim(echo_bottom, 0)
         ax.set_xlim(x_lims[0], x_lims[1])
     return echo_plot

@@ -361,6 +361,9 @@ def interactive_segment_maker(eDNA_cast_depths, ctd_evl_file, transducer_depth, 
              values for a few casts -  make a graph of atol_zero vs maximum depth of cast and use the fit line
     '''
     def get_atol(atol):
+        '''
+        allows user to try multiple times to give new atol values and is used for error handling with bad entries
+        '''
         try: 
             atol = atol.split()
             if len(atol) != 1:
@@ -659,7 +662,7 @@ def interactive_subset_maker(segment_dic, raw_files, transducer_offset, toffsets
             '''
             remove_fq: allows users to remove frequencies from dictionary
             '''
-            rm_fq = input("List freqencies you want to remove seperated by commas").split(",")
+            rm_fq = input("List freqencies you want to remove seperated by commas: ").split(",")
             for fq in rm_fq:
                 try:
                     subset.pop(int(fq)) # remove specified key
@@ -701,7 +704,7 @@ def interactive_subset_maker(segment_dic, raw_files, transducer_offset, toffsets
     return subset_dic
 
 
-def calc_MFI(Sv_data_dic, delta = 40, bad_fq = []):
+def calc_MFI(Sv_data_dic, delta = 40, bad_fq = [], global_norm = False):
     '''
     calc_MFI: creates processed data object with MFI classification from a dictionary of Sv data with frequencies as keys
     Inputs: Sv_data_dic (Sv data object dictionary) - dictionary with freqencies as keys - can be created with subset_segments_Sv()
@@ -717,8 +720,8 @@ def calc_MFI(Sv_data_dic, delta = 40, bad_fq = []):
     for b in bad_fq:
         try: f.remove(b)
         except: print(str(b) + " was not in frequency list and can't be removed")
-
-    f = [int(i/1000) for i in f]
+    
+    f = [int(i)/1000 for i in f]
     f.sort()
     f_inv = {i: 1/i for i in f} # inverse freqency calues
     nf = len(f)
@@ -730,16 +733,21 @@ def calc_MFI(Sv_data_dic, delta = 40, bad_fq = []):
     dist_dic = {}
     for comb in f_comb:
         dist_dic[comb] = 1-math.exp((-1*abs(comb[0]-comb[1]))/delta) # distance calculation
-    
+    print(Sv_data_dic.keys())
     sv_data_dic={i: None for i in f} # linearize Sv data
     for i in f:
         if Sv_data_dic[i*1000] is not None:
             sv_data_dic[i] = Sv_data_dic[i*1000].copy()
             sv_data_dic[i].data = 10**(sv_data_dic[i].data/10)
    
-    max_vals = [np.amax(sv.data) for sv in sv_data_dic.values()] # maximum sv value per each freqencys' sv data
-    min_vals = [np.amin(sv.data) for sv in sv_data_dic.values()] # minimum sv value per each freqencys' sv data
-    Norms={i: None for i in f} # normalized sv data for each frequency 
+    max_vals = np.array([np.amax(sv.data) for sv in sv_data_dic.values()]) # maximum sv value per each freqencys' sv data
+    min_vals = np.array([np.amin(sv.data) for sv in sv_data_dic.values()]) # minimum sv value per each freqencys' sv data
+    if global_norm: 
+        max_vals = np.full(max_vals.shape, np.max(max_vals))
+        min_vals = np.full(min_vals.shape, np.min(min_vals))
+    print(max_vals)
+    
+    Norms={i: None for i in f} # normalized sv data for each frequency
     for i in range(len(f)):
         norm_sv = sv_data_dic[f[i]].copy()
         # (sV(fi)-min(sV(f)))/(max(sV(f)) -min(sV(f) normalization equation as confirmed by Berger and Trenkel
@@ -766,4 +774,50 @@ def calc_MFI(Sv_data_dic, delta = 40, bad_fq = []):
     MFI_obj.ping_time = sv_data.ping_time
     MFI_obj.depth = sv_data.depth
     return MFI_obj
+
+def processed_data_from_dic(data, bounds_dic, type = "Sv"):
+    '''
+    processed_data_from_dic: takes a data array and a bound dictionary and creates a processed data object from
+                             Rick Towler's pyEcholab code
+    Inputs: data (2D data array or numpy array) - usually Sv data
+            bounds_dic (dictionary) - bounds for one cast i.e. {"ping_time": array, "depth": array}
+            type (string): name for type of data
+    Outputs: processed data object with attributes data, ping_time, n_pings, and depth
+    '''
+    obj = processed_data.processed_data("None", math.nan, type)
+    obj.data = np.array(data)
+    pings = bounds_dic["ping_time"]
+    obj.ping_time = np.array([np.datetime64(x) for x in pings])
+    obj.n_pings = len(pings)
+    obj.depth = np.array(bounds_dic["depth"])
+    return obj
+
+def mask_mfi(mfi, Sv, range):
+    '''
+    mask_mfi: takes a MFI data array, and a Sv data array and applys a mask where the MFI data is in the range
+              and applies the mask to the Sv data
+    Inputs: mfi (2D float array) - MFI data array
+            Sv (2D floar array) - Sv data array of the same size as mfi
+            range (float list) - two item list specifying the upper and lower limits of the range of values that
+                                 denote desirable areas of the Sv data
+    Outputs: outputs a 2D float array of the Sv data with a mfi mask applied
+    '''
+    mfi = np.array(mfi)
+    mask = np.where((range[0] < mfi) & (mfi < range[1]), 1, 0)
+    mask_Sv = np.multiply(mask, np.array(Sv))
+    mask_Sv[mask_Sv == 0] = -999
+    return mask_Sv
+
+def calc_ABC(Sv_obj):
+    '''
+    calc_ABC: Calculates the Area Backscattering Coefficent (ABC) for a Sv data object
+    Inputs: Sv_obj (pyEcholab processed data object) - Sv processed data object with data and depth attributes
+    Outputs: returns ABC value (float) for the Sv data provided 
+    '''
+    Sv_data = np.array(Sv_obj.data)
+    n_points = Sv_data.size
+    sv_mean = np.sum(10**(Sv_obj.data/10)) # using all data points
+    depths = Sv_obj.depth
+    bin_thickness = (max(depths) - min(depths))/len(depths) # does not allow for variable ping depths
+    return sv_mean * bin_thickness # return ABC value
 

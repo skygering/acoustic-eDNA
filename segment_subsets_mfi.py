@@ -55,7 +55,7 @@ for i in casts:
         sample = list(subset_Sv_dic.keys())[j]
         mfi = process.calc_MFI(subset_Sv_dic[sample])
         mfi_depth_dic[sample] = mfi.data.tolist()
-        fig, ax = plt.subplots(figsize=(15,8))
+        fig, ax = plt.subplots(figsize=(18,4))
         mfi_image = plotting.plot_MFI(ax, mfi, "Cast " + str(i+1) + ", Depth " + str(sample) + " : MFI Predictions")
         plt.savefig(output_path + "ctd_" +  str(i+1) + "_" + str(sample) + "_mfi.png")
         plt.close()
