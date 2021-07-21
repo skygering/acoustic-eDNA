@@ -1,5 +1,5 @@
 '''
-Load .evl/.raw file dictionary (see example in raw_overlay_ctd.py) and segment each CTD profile and take a 5 minute and 4m subset of the Sv
+Load .evl/.raw file dictionary (see example in raw_overlay_ctd.py) and segment each CTD profile and take a 10 minute and 4m subset of the Sv
 data around each segment where an eDNA sample was taken. Save all subsets into a nested .json file where outerlayer is cast number, the nest key is
 the depth, then the frequencies, and finally the innermost layer is the Sv data points in a nested list. For each subset, calculate MFI and save image
 of classification as well as a .json file with array of MFI files for each depth for each cast.

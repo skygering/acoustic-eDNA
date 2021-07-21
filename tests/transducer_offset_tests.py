@@ -1,3 +1,10 @@
+######################################################################
+# Script to test several ways of setting transducer offset for calculating
+# Sv data and making echograms using pyEcholab code 
+#
+# Skylar Gering July 2021
+######################################################################
+
 from matplotlib.pyplot import show
 from echolab2.instruments import EK80
 from echolab2.plotting.matplotlib import echogram

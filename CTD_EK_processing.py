@@ -1,3 +1,14 @@
+'''
+Functions for processing acoustic data for comparing it to eDNA data - includes 
+functionality to create .evl files from .asc files, matching .evl and .raw files by
+timestamp, splitting the CTD trace into segments and identifying which segments were
+eDNA sample sites, subsetting the acoustic data around those segments, and calculating
+the MFI and ABC for these subsets.
+
+Developed by Skylar Gering - July 2021
+Hollings Scholarship Research Project
+'''
+
 from echolab2.plotting.matplotlib import echogram
 from echolab2.processing import line, processed_data
 from echolab2.instruments import EK80
@@ -791,7 +802,7 @@ def processed_data_from_dic(data, bounds_dic, type = "Sv"):
     obj.depth = np.array(bounds_dic["depth"])
     return obj
 
-def mask_mfi(mfi, Sv, range):
+def mask_mfi(mfi, Sv, ranges):
     '''
     mask_mfi: takes a MFI data array, and a Sv data array and applys a mask where the MFI data is in the range
               and applies the mask to the Sv data
@@ -802,7 +813,11 @@ def mask_mfi(mfi, Sv, range):
     Outputs: outputs a 2D float array of the Sv data with a mfi mask applied
     '''
     mfi = np.array(mfi)
-    mask = np.where((range[0] < mfi) & (mfi < range[1]), 1, 0) # creates mask within range
+    mask = np.full(mfi.shape, False)
+    for r in ranges:
+        r_mask = np.where((r[0] < mfi) & (mfi < r[1]), True, False) # creates boolean mask within range
+        mask = mask | r_mask # combine boolean masks - using logical OR means True if anything within any of the ranges is True overall
+    mask = np.array(mask, dtype=int) # force boolean mask into binary mask
     mask_Sv = np.multiply(mask, np.array(Sv)) # applies mask
     mask_Sv[mask_Sv == 0] = -999 # -999 is basically 0 in log
     return mask_Sv

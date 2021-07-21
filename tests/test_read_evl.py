@@ -1,3 +1,10 @@
+######################################################################
+# Script to test the pyEcholab line.read_evl method (written by Gering,
+# modified by Towler July 2021) 
+#
+# Skylar Gering July 2021
+######################################################################
+
 from echolab2.processing import line
 from echolab2.instruments import EK80
 from echolab2.plotting.matplotlib import echogram

@@ -1,3 +1,14 @@
+'''
+Functions for plotting acoustic data for comparing it to eDNA data - includes 
+functionality to plot CTD profiles from .evl files, plot echograms from .raw files,
+overlay the CTD trace on the echograms, plot the CTD profile split into segments, and
+plot the MFI for eDNA subsets.
+
+Developed by Skylar Gering - July 2021
+Hollings Scholarship Research Project
+'''
+
+
 from echolab2.processing import line
 import os
 import matplotlib.pyplot as plt

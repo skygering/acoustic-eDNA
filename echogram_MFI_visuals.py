@@ -1,3 +1,9 @@
+'''
+Visuals for Skylar Gering Hollings Scholarship presentation - focus on methods for Cast 14, depth 56
+
+Skylar Gering July 2021
+'''
+
 import CTD_EK_processing as process
 import CTD_EK_plotting as plotting
 import os
