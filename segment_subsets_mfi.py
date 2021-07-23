@@ -41,7 +41,7 @@ ctd_subset_dic = {}
 bounds_dic = {}
 mfi_dic = {}
 
-casts =  range(13,15) #range(len(eDNA_cast_dic.keys()))
+casts =  range(len(eDNA_cast_dic.keys()))
 for i in casts:
     cast = list(eDNA_cast_dic.keys())[i]
     mfi_depth_dic = {}
@@ -53,12 +53,14 @@ for i in casts:
     ctd_subset_dic[cast], bounds_dic[cast]  = process.subset_to_json(copy.deepcopy(subset_Sv_dic)) # save subsets in nested dictionary
     for j in range(len(subset_Sv_dic.keys())):
         sample = list(subset_Sv_dic.keys())[j]
-        mfi = process.calc_MFI(subset_Sv_dic[sample])
-        mfi_depth_dic[sample] = mfi.data.tolist()
-        fig, ax = plt.subplots(figsize=(18,4))
-        mfi_image = plotting.plot_MFI(ax, mfi, "Cast " + str(i+1) + ", Depth " + str(sample) + " : MFI Predictions")
-        plt.savefig(output_path + "ctd_" +  str(i+1) + "_" + str(sample) + "_mfi.png")
-        plt.close()
+        mfi = process.calc_MFI(subset_Sv_dic[sample], sample, bad_fq = [200000])
+        if mfi.data is not None:
+                mfi_depth_dic[sample] = mfi.data.tolist()
+                fig, ax = plt.subplots(figsize=(18,4))
+                mfi_image = plotting.plot_MFI(ax, mfi, "Cast " + str(i+1) + ", Depth " + str(sample) + " : MFI Predictions")
+                plt.savefig(output_path + "ctd_" +  str(i+1) + "_" + str(sample) + "_mfi.png")
+                plt.close()
+        else: mfi_depth_dic[sample] = None
 
 with open(output_path + "cast14_15_subsets.json", 'w') as outfile: # save subset dictionary to .json file
         json.dump(ctd_subset_dic, outfile)

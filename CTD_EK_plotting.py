@@ -79,7 +79,7 @@ def plot_echo(ax, ek, fq, fq_thresholds = [-90, -20], transducer_offset = 0.0, t
     echo_plot = echogram.Echogram(ax, Sv, threshold=[fq_thresholds[0],fq_thresholds[1]])
     return echo_plot
 
-def plot_evl_trace(ax, echo_plot, trace_infn, trace_path = "", zoom = True, time_offset = [2, 0]):
+def plot_evl_trace(ax, echo_plot, trace_infn, trace_path = "", zoom = True, time_offset = [2, 0], lwidth = 2.5):
     '''
     plot_evl_trace: add a evl depth trace to an echogram plot
     Inputs:
@@ -88,14 +88,15 @@ def plot_evl_trace(ax, echo_plot, trace_infn, trace_path = "", zoom = True, time
            trace_infn (string path and filename) -  file name of evl CTD trace to overlay on echogram - this is optional
            trace_path (string) - optional variable required if trace_infn does not have a path
            zoom (boolean) - optional - if True will zoom in on echogram surrounding evl CTD trace
-           show (boolean) - optional variable that determines if picture is shown, default is True
+           time_offset (integer list) - optional - determines how much to zoom out surrpunding the CTD trace if zoom = True
+           lwidth (integer) - width of CTD profile line on echogram
     Output: echo_plot - returns the updated echogram object
             After running function plt.show(), plt.savefig(), or plt.close() can all be run
     '''
     print("Adding CTD profile: " + trace_infn)
     trace_infn = os.path.normpath(trace_path + "/" + trace_infn)
     depth_line = line.read_evl(trace_infn)
-    echo_plot.plot_line(depth_line, linewidth=2.5, color = "black")
+    echo_plot.plot_line(depth_line, linewidth=lwidth, color = "black")
     if zoom:
         echo_bottom = max(depth_line.data) * 1.35
         x_lims = ((min(depth_line.ping_time) - np.timedelta64(time_offset[0], 'm')).astype('float'), 

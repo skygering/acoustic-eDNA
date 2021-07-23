@@ -676,6 +676,7 @@ def interactive_subset_maker(segment_dic, raw_files, transducer_offset, toffsets
             remove_fq: allows users to remove frequencies from dictionary
             '''
             rm_fq = input("List freqencies you want to remove seperated by commas: ").split(",")
+            rm_fq = [x.strip() for x in rm_fq]
             for fq in rm_fq:
                 try:
                     subset.pop(fq) # remove specified key
@@ -714,11 +715,12 @@ def interactive_subset_maker(segment_dic, raw_files, transducer_offset, toffsets
     return subset_dic
 
 
-def calc_MFI(Sv_data_dic, delta = 40, bad_fq = [], global_norm = False):
+def calc_MFI(Sv_data_dic, depth = math.nan, delta = 40, bad_fq = [], global_norm = False):
     '''
     calc_MFI: creates processed data object with MFI classification from a dictionary of Sv data with frequencies as keys
     Inputs: Sv_data_dic (Sv data object dictionary) - dictionary with freqencies as keys and Sv processed data objects as values
                                                     - can be created with subset_segments_Sv()
+            depth (string) - depth of sample
             delta (integer) - parameter needed for MFI calculation - see Trenkel, Verena M., and Laurent Berger. "A fisheries acoustic 
                               multi-frequency indicator to inform on large scale spatial patterns of aquatic pelagic ecosystems."
             local_norm (boolean) - calculating MFI requires normalizing the Sv data by maximum value - if True each frequency is maximized
@@ -727,6 +729,8 @@ def calc_MFI(Sv_data_dic, delta = 40, bad_fq = [], global_norm = False):
     Output: MFI processed data object where the data attribute is the MFI calculation, while the ping_time, n_pings, and depth are the same
             as in input Sv objects
     '''
+    MFI_obj = processed_data.processed_data("None", math.nan, "MFI")
+
     f=list(Sv_data_dic.keys()) # freqencies of Sv data availible
     for b in bad_fq:
         try: f.remove(str(b))
@@ -738,51 +742,53 @@ def calc_MFI(Sv_data_dic, delta = 40, bad_fq = [], global_norm = False):
     nf = len(f)
 
     if nf < 3:
-        warnings.warn("Two or less frequencies provided - cannot calcualte MFI!")
+        print("MFI determination is not possible at " + depth + "m, too few frequencies.")
+        MFI_obj.data = None # set data object to None
+        MFI_obj.ping_time = None
+        MFI_obj.n_pings = math.nan
+    else: 
+        f_comb = list(combinations(f, 2)) # combinations of frequencies
+        dist_dic = {}
+        for comb in f_comb:
+            dist_dic[comb] = 1-math.exp((-1*abs(comb[0]-comb[1]))/delta) # distance calculation
 
-    f_comb = list(combinations(f, 2)) # combinations of frequencies
-    dist_dic = {}
-    for comb in f_comb:
-        dist_dic[comb] = 1-math.exp((-1*abs(comb[0]-comb[1]))/delta) # distance calculation
-
-    sv_data_dic={i: None for i in f} # linearize Sv data
-    for i in f:
-        if Sv_data_dic[str(i*1000)] is not None:
-            sv_data_dic[i] = copy.deepcopy(Sv_data_dic[str(i*1000)])
-            sv_data_dic[i].data = 10**(sv_data_dic[i].data/10)
-   
-    max_vals = np.array([np.amax(sv.data) for sv in sv_data_dic.values()]) # maximum sv value per each freqencys' sv data
-    min_vals = np.array([np.amin(sv.data) for sv in sv_data_dic.values()]) # minimum sv value per each freqencys' sv data
-    if global_norm: 
-        max_vals = np.full(max_vals.shape, np.max(max_vals))
-        min_vals = np.full(min_vals.shape, np.min(min_vals))
+        sv_data_dic={i: None for i in f} # linearize Sv data
+        for i in f:
+            if Sv_data_dic[str(i*1000)] is not None:
+                sv_data_dic[i] = copy.deepcopy(Sv_data_dic[str(i*1000)])
+                sv_data_dic[i].data = 10**(sv_data_dic[i].data/10)
     
-    Norms={i: None for i in f} # normalized sv data for each frequency
-    for i in range(len(f)):
-        norm_sv = copy.deepcopy(sv_data_dic[f[i]])
-        # (sV(fi)-min(sV(f)))/(max(sV(f)) -min(sV(f) normalization equation as confirmed by Berger and Trenkel
-        norm_sv.data = ((sv_data_dic[f[i]].data - min_vals[i])/(max_vals[i] - min_vals[i])).astype(float)
-        Norms[f[i]] = norm_sv
+        max_vals = np.array([np.amax(sv.data) for sv in sv_data_dic.values()]) # maximum sv value per each freqencys' sv data
+        min_vals = np.array([np.amin(sv.data) for sv in sv_data_dic.values()]) # minimum sv value per each freqencys' sv data
+        if global_norm: 
+            max_vals = np.full(max_vals.shape, np.max(max_vals))
+            min_vals = np.full(min_vals.shape, np.min(min_vals))
+        
+        Norms={i: None for i in f} # normalized sv data for each frequency
+        for i in range(len(f)):
+            norm_sv = copy.deepcopy(sv_data_dic[f[i]])
+            # (sV(fi)-min(sV(f)))/(max(sV(f)) -min(sV(f) normalization equation as confirmed by Berger and Trenkel
+            norm_sv.data = ((sv_data_dic[f[i]].data - min_vals[i])/(max_vals[i] - min_vals[i])).astype(float)
+            Norms[f[i]] = norm_sv
 
-    # MFI calculatin
-    a=[]
-    b=[]
-    for fq_pair in dist_dic:
-        f0 = fq_pair[0]
-        f1 = fq_pair[1]
-        if Norms[f0] is not None and Norms[f1] is not None:
-            x = Norms[f0].data * Norms[f1].data * f_inv[f0] * f_inv[f1]
-            a.append(dist_dic[fq_pair] * x)
-            b.append(x)
-    MFI_data = ((sum(a)/sum(b))-0.4)/0.6 
+        # MFI calculatin
+        a=[]
+        b=[]
+        for fq_pair in dist_dic:
+            f0 = fq_pair[0]
+            f1 = fq_pair[1]
+            if Norms[f0] is not None and Norms[f1] is not None:
+                x = Norms[f0].data * Norms[f1].data * f_inv[f0] * f_inv[f1]
+                a.append(dist_dic[fq_pair] * x)
+                b.append(x)
+        MFI_data = ((sum(a)/sum(b))-0.4)/0.6 
 
-    # create processed data object from pyEcholab
-    MFI_obj = processed_data.processed_data("None", math.nan, "MFI")
-    MFI_obj.data = MFI_data
-    sv_data = sv_data_dic[f[0]]
-    MFI_obj.n_pings = sv_data.n_pings
-    MFI_obj.ping_time = sv_data.ping_time
-    MFI_obj.depth = sv_data.depth
+        # Fill in MFI proccessed data object since MFI can be determined
+        MFI_obj.data = MFI_data
+        sv_data = sv_data_dic[f[0]]
+        MFI_obj.n_pings = sv_data.n_pings
+        MFI_obj.ping_time = sv_data.ping_time
+        MFI_obj.depth = sv_data.depth
     return MFI_obj
 
 def processed_data_from_dic(data, bounds_dic, type = "Sv"):
@@ -834,4 +840,3 @@ def calc_ABC(Sv_obj):
     depths = Sv_obj.depth
     bin_thickness = (max(depths) - min(depths))/len(depths) # does not allow for variable ping depths
     return sv_mean * bin_thickness # return ABC value
-
