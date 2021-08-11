@@ -163,10 +163,10 @@ def plot_MFI(ax, mfi, title = "", label_size = 14):
         return tick_label
 
     # splits colors into 4 MFI catagories and value ranges
-    colors = ["#006164", "#57c4ad", "#eda247", "#db4325"]
-    bounds = [0, 0.4, 0.6, 0.8, 1]
+    colors = ["#ffffff", "#006164", "#57c4ad", "#eda247", "#db4325"]
+    bounds = [-0.2, 0.4, 0.6, 0.8, 1]
     cmap = mcolors.ListedColormap(colors)
-    norm = mcolors.BoundaryNorm(bounds, 4)
+    norm = mcolors.BoundaryNorm(bounds, 5, extend="min")
     cmap.set_bad(color="gray")
 
     # rotates MFI data to be plotted depth vs time
@@ -200,8 +200,9 @@ def plot_MFI(ax, mfi, title = "", label_size = 14):
     # color bar aesthetics
     cbar = plt.colorbar(mfi_image)
     cbar.set_ticks(list())
-    for index, label in enumerate(["Swimbladder Fish", "Small Resonant Bubbles", "Zooplankton", "Non-Swimbladder Fish"]):
+    for index, label in enumerate(["", "Swimbladder Fish", "Small Resonant Bubbles", "Zooplankton", "Non-Swimbladder Fish"]):
         x = 1.5
-        y = (2*index+1)/8
+        y = (3*index-1)/10 - 0.3
+        print(y)
         cbar.ax.text(x,y,label, size = label_size)
     return mfi_image

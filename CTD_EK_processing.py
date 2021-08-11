@@ -836,7 +836,7 @@ def calc_ABC(Sv_obj):
     '''
     Sv_data = np.array(Sv_obj.data)
     n_points = Sv_data.size
-    sv_mean = np.sum(10**(Sv_obj.data/10)) # using all data points
-    depths = Sv_obj.depth
-    bin_thickness = (max(depths) - min(depths))/len(depths) # does not allow for variable ping depths
+    sv_mean = np.sum(10**(Sv_data/10))/n_points # using all data points
+    depths = np.array(Sv_obj.depth)
+    bin_thickness = (np.max(depths) - np.min(depths))/len(depths) # does not allow for variable ping depths
     return sv_mean * bin_thickness # return ABC value

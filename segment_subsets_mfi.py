@@ -62,13 +62,13 @@ for i in casts:
                 plt.close()
         else: mfi_depth_dic[sample] = None
 
-with open(output_path + "cast14_15_subsets.json", 'w') as outfile: # save subset dictionary to .json file
+with open(output_path + "subsets.json", 'w') as outfile: # save subset dictionary to .json file
         json.dump(ctd_subset_dic, outfile)
 
-with open(output_path + "cast14_15_subset_bounds.json", 'w') as outfile: # save subset dictionary to .json file
+with open(output_path + "subset_bounds.json", 'w') as outfile: # save subset dictionary to .json file
         json.dump(bounds_dic, outfile)
 
-with open(output_path + "cast14_15_mfi.json", 'w') as outfile: # save subset dictionary to .json file
+with open(output_path + "mfi.json", 'w') as outfile: # save subset dictionary to .json file
         json.dump(mfi_dic, outfile)
 
 

@@ -48,7 +48,7 @@ for cast in mfi_dic:
             abc_val = process.calc_ABC(mask_Sv_obj) # print and calculate ABC of masked Sv
             abc_depth_dic[depth] = abc_val
 
-with open(output_path + "cast14_15_abc.json", 'w') as outfile: # save subset dictionary to .json file
+with open(output_path + "abc.json", 'w') as outfile: # save subset dictionary to .json file
         json.dump(ABC_dic, outfile)
 
 
