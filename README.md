@@ -1,14 +1,14 @@
 # acoustic-eDNA
 #### Summer project using acoustic and eDNA data to examine new fisheries monitoring technique as a NOAA Hollings Scholar
 
-This project involves comparing the acoustic data and eDNA data collected on the 2019 Ecosystem Monitoring Survey (EcoMon). eDNA is a relatively new fisheries monitoring technique and while it has proven somewhat successful inland and in smaller water area, it is relativly untested in the open ocean and across the continental shelf and slopen. We hope that by comparing the eDNA findings to the acoustic results we will be able to study to potential of eDNA monitoring and potentially provide a new form of acoustic data vertification.
+This project involves comparing the acoustic data and eDNA data collected on the 2019 Ecosystem Monitoring Survey (EcoMon). eDNA is a relatively new fisheries monitoring technique and while it has proven somewhat successful inland and in smaller water area, it is relativly untested in the open ocean and across the continental shelf and slope. We hope that by comparing the eDNA findings to the acoustic results we will be able to study to potential of eDNA monitoring and potentially provide a new form of acoustic data vertification.
 
 This code base has two main python files: CTD_EK_processing.py and CTD_EK_plotting.py. You will also require the pyEcholab Package (https://github.com/CI-CMG/pyEcholab). If the RKT-80 branch is still live, use that one. If not, it has been merged into the main branch. 
 
 
-**There are also three scripts that will walk you through the following process. These scripts, in order of use are `raw_overlay_ctd.py`, `segment_subsets_mfi.py`, and `mfi_masks_ABC.py`.*** 
+**There are also three scripts that will walk you through the following process. These scripts, in order of use are `raw_overlay_ctd.py`, `segment_subsets_mfi.py`, and `mfi_masks_ABC.py`.** 
 
-There is also a visualization script `echogram_MFI.py` and other test scripts in the test folder that are worth looking at for more guidance.
+There are also other scripts in the test folder that are worth looking at for more guidance on how to apply the methods.
 
 When starting, you need the .asc files output by the CTD trace and the .raw files that are output by the echosounder. This code is all based off of the EK80 echosounder software. Code will need to be updated if a different echosounder is used.
 
@@ -32,11 +32,11 @@ If you want a list of the .asc files, you can run the  `asc_from_list function`,
 
 `evl_names = cast_new_extension(asc_names, ".asc", ".evl")`
 
-Now that we have the .evl files, we want to find the .raw files (the acoustic data) that overlaps with the CTD trace in the .evl files. For this, we will run the `match_raw_evl` function, which needs a list of all the .evl files and a list of all of the raw files (see script for a way to get all .raw files in a directory). This depends on the .raw file names being of the form: cruise-DYmd-Thms.raw. This function returns a dictionary with evl filenames as keys and a list of overlapping .raw files as values. If an outfile path is provided, this dictionary will be saved as a list called evl_raw_matches.list. This list can be read back into dictionary format with the function `evl_raw_dic_from_file`.  The output file should look something like the following:
+Now that we have the .evl files, we want to find the .raw files (the acoustic data) that overlaps with the CTD trace in the .evl files. For this, we will run the `match_raw_evl` function, which needs a list of all the .evl files and a list of all of the raw files (see script for a way to get all .raw files in a directory). This depends on the .raw file names being of the form: cruise-Dymd-Thms.raw. This function returns a dictionary with evl filenames as keys and a list of overlapping .raw files as values. If an outfile path is provided, this dictionary will be saved as a list called evl_raw_matches.list. This list can be read back into dictionary format with the function `evl_raw_dic_from_file`.  The output file should look something like the following:
 
 ![evl_raw_pic](https://user-images.githubusercontent.com/60117338/124824644-84395300-df27-11eb-83ea-bd7b6ac5720a.png)
 
-We now want to split the CTD profile up into segments and identify at which segments eDNA samples were taken. Samples are only taken when the CTD trace plateau's at a single water depth for a prolonged time period. eDNA samples were taken at some of, but not all of, these plateaus. To analyze one case, a list of depths where eDNA samples are taken is needed, as well as the .evl file for that cast. After analysis, a nested dictionary for the cast will be returned with points within the trace tagged as being in a water "bottle" sample and futher witin a "useable" eDNA sample. This dictionary can be saved as a nested .json file. While this can be done by hand by running first `create_segments_dic` and then `mark_usable_depth`, it is recommended that you use `interactive_segment_maker` as this will allow you to dynamically update the classification if it doesn't look correct. If you do use `interactive_segment_maker`, make sure to note the possible needed changes tothe `atol_zero` equation (explained in code comments). 
+We now want to split the CTD profile up into segments and identify at which segments eDNA samples were taken. Samples are only taken when the CTD trace plateau's at a single water depth for a prolonged time period. eDNA samples were taken at some of, but not all of, these plateaus. To analyze one cast, a list of depths where eDNA samples are taken is needed, as well as the .evl file for that cast. After analysis, a nested dictionary for the cast will be returned with points within the trace tagged as being in a water "bottle" sample and futher witin a "useable" eDNA sample. This dictionary can be saved as a nested .json file. While this can be done by hand by running first `create_segments_dic` and then `mark_usable_depth`, it is recommended that you use `interactive_segment_maker` as this will allow you to dynamically update the classification if it doesn't look correct. If you do use `interactive_segment_maker`, make sure to note the possible needed changes tothe `atol_zero` equation (explained in code comments). 
 
 Before running any of this, you should make a file with each line being cast number followed by the depths at which an eDNA sample was taken. Use `read_casts` to read this file into a dictionary. Here are a few lines of an example file (if you want the method to work you need the header):
 
@@ -55,7 +55,7 @@ We are planning on calculating the ABC for all usable casts and depths, seperati
 
 ### Plotting - CTD_EK_plotting.py
 
-We are able to plot the CTD traces using `plot_evl`. for this, we just need a matplotlib pyplot axis to plot on and a .evl file.
+We are able to plot the CTD traces using `plot_evl`. For this, we just need a matplotlib pyplot axis to plot on and a .evl file.
 
 We can also plot an echogram using `plot_echo`. This relies heavily on pyEcholab's `echogram` function and simply adds additional aesthetic features. 
 
@@ -64,3 +64,7 @@ We can also overlay a CTD trace over an echogram by passing the echogram returne
 We can plot a segment dictionary created by `create_segments_dic` and then `mark_usable_depth` in the same pattern used by the `interactive_segment_maker`. For this use `plot_segments`.
 
 Finally, we can plot MFI seperated into the 4 biological catagories using `plot_MFI`.
+
+### R Code
+
+There is also some R code available to visualize the data. After running the python code to create the subset, MFI, or ABC data, these outputs can be read into R, and the availible R code ran to make the visualizations and do simple statistical analysis. These scripts were written to help anyone who strongly prefers working in R for analysis and visualization. 
